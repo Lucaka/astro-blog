@@ -1,12 +1,13 @@
 import type { IUniform } from "three";
 
 /**
- * Screen-space fake gravitational lensing: pushes the sample point radially
- * outward from the (screen-center) black hole, growing sharply close in.
- * This bends whatever was rendered behind it - stars, disk, grid - without
- * any raymarching, and naturally crushes the very center to black once the
- * sample point is pushed off-screen, giving the "shadow" for free instead of
- * drawing a literal event-horizon sphere.
+ * Screen-space black hole shadow with only a sliver of edge distortion - the
+ * broad-area gravitational lensing warp has been removed entirely, so stars,
+ * disk and grid render undistorted everywhere except a thin ring right at
+ * the shadow boundary (r^10 falloff confines it there, tighter than a
+ * gentler power would give). The sample point is pushed off-screen only
+ * within that ring, which is what paints the shadow black without any
+ * hard-edged cutout.
  */
 export const LensingShader: {
   uniforms: Record<string, IUniform>;
@@ -16,9 +17,7 @@ export const LensingShader: {
   uniforms: {
     tDiffuse: { value: null },
     uAspect: { value: 1 },
-    uStrength: { value: 0.14 },
-    uFalloff: { value: 0.14 },
-    uShadowRadius: { value: 0.07 },
+    uCoreStrength: { value: 4.62e-12 },
   },
   vertexShader: /* glsl */ `
     varying vec2 vUv;
@@ -30,9 +29,7 @@ export const LensingShader: {
   fragmentShader: /* glsl */ `
     uniform sampler2D tDiffuse;
     uniform float uAspect;
-    uniform float uStrength;
-    uniform float uFalloff;
-    uniform float uShadowRadius;
+    uniform float uCoreStrength;
     varying vec2 vUv;
 
     void main() {
@@ -42,17 +39,12 @@ export const LensingShader: {
 
       float r = length(delta);
 
-      if (r < uShadowRadius) {
-        gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
-        return;
+      vec2 offset = vec2(0.0);
+      if (r > 0.0005) {
+        float distortion = uCoreStrength / pow(r + 0.01, 9.0);
+        offset = normalize(delta) * distortion;
       }
 
-      // Distortion peaks right at the shadow edge and decays smoothly with
-      // distance, instead of blowing up like a true 1/r^2 falloff would in
-      // normalized UV space.
-      float t = r - uShadowRadius;
-      float distortion = uStrength * exp(-t / uFalloff);
-      vec2 offset = normalize(delta) * distortion;
       vec2 sampleDelta = delta + offset;
       sampleDelta.x /= uAspect;
       vec2 sampleUv = center + sampleDelta;

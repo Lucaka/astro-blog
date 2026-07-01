@@ -21,10 +21,10 @@ export function createOrbitingBodies(): OrbitingBodies {
   const group = new THREE.Group();
 
   const configs = [
-    { radius: 11, inclination: THREE.MathUtils.degToRad(18), color: 0xfff2cc },
-    { radius: 11, inclination: THREE.MathUtils.degToRad(18), color: 0xcce8ff },
-    { radius: 13.5, inclination: THREE.MathUtils.degToRad(-32), color: 0xffd9cc },
-    { radius: 13.5, inclination: THREE.MathUtils.degToRad(-32), color: 0xe0ccff },
+    { radius: 16, inclination: THREE.MathUtils.degToRad(18), color: 0xfff2cc },
+    { radius: 16, inclination: THREE.MathUtils.degToRad(18), color: 0xcce8ff },
+    { radius: 20, inclination: THREE.MathUtils.degToRad(-32), color: 0xffd9cc },
+    { radius: 20, inclination: THREE.MathUtils.degToRad(-32), color: 0xe0ccff },
   ];
 
   const bodies: OrbitingBody[] = configs.map((config, i) => {

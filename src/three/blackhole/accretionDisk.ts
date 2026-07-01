@@ -38,7 +38,7 @@ export function createAccretionDisk(options?: {
   innerRadius?: number;
   outerRadius?: number;
 }): AccretionDisk {
-  const count = options?.count ?? 9000;
+  const count = options?.count ?? 10800;
   const innerRadius = options?.innerRadius ?? 1.15;
   const outerRadius = options?.outerRadius ?? 9;
 
@@ -46,6 +46,8 @@ export function createAccretionDisk(options?: {
   const angle = new Float32Array(count);
   const speedVariance = new Float32Array(count);
   const verticalSeed = new Float32Array(count);
+  const brightness = new Float32Array(count);
+  const noiseSeed = new Float32Array(count);
 
   const positions = new Float32Array(count * 3);
   const colors = new Float32Array(count * 3);
@@ -58,7 +60,9 @@ export function createAccretionDisk(options?: {
     angle[i] = Math.random() * Math.PI * 2;
     speedVariance[i] = 0.75 + Math.random() * 0.5;
     verticalSeed[i] = THREE.MathUtils.randFloatSpread(2);
-    sizes[i] = 0.08 + Math.random() * Math.random() * 0.16;
+    sizes[i] = 0.06 + Math.random() * Math.random() * 0.26;
+    brightness[i] = 0.6 + Math.random() * 0.85;
+    noiseSeed[i] = Math.random() * Math.PI * 2;
   }
 
   for (let i = 0; i < count; i++) {
@@ -80,8 +84,11 @@ export function createAccretionDisk(options?: {
   ) as THREE.BufferAttribute;
   const colorAttr = geometry.getAttribute("color") as THREE.BufferAttribute;
 
+  let elapsed = 0;
+
   function update(dt: number) {
     const span = outerRadius - innerRadius;
+    elapsed += dt;
 
     for (let i = 0; i < count; i++) {
       // Faster infall and faster (Keplerian-like) rotation the closer a
@@ -101,15 +108,27 @@ export function createAccretionDisk(options?: {
       const a = angle[i];
       const thickness = 0.35 * Math.pow(rNow / outerRadius, 1.15);
 
+      // Light turbulence: a per-particle sine wobble layered on top of the
+      // clean Keplerian spiral, purely cosmetic (display-only, never fed
+      // back into radius[i]/angle[i]) so the underlying physics stays exact.
+      const wobblePhase = elapsed * 1.3 + noiseSeed[i];
+      const radialWobble = Math.sin(wobblePhase) * 0.07 * rNow;
+      const angularWobble = Math.sin(wobblePhase * 0.7 + 1.0) * 0.09;
+      const verticalWobble = Math.sin(wobblePhase * 1.6 + 2.0) * thickness * 0.6;
+
+      const rDisplay = rNow + radialWobble;
+      const aDisplay = a + angularWobble;
+
       positionAttr.setXYZ(
         i,
-        rNow * Math.cos(a),
-        verticalSeed[i] * thickness,
-        rNow * Math.sin(a),
+        rDisplay * Math.cos(aDisplay),
+        verticalSeed[i] * thickness + verticalWobble,
+        rDisplay * Math.sin(aDisplay),
       );
 
       const t = (rNow - innerRadius) / span;
       colorForT(t, tmpColor);
+      tmpColor.multiplyScalar(brightness[i]);
       colorAttr.setXYZ(i, tmpColor.r, tmpColor.g, tmpColor.b);
     }
 

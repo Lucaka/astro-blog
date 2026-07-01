@@ -12,7 +12,11 @@ import { createStarfield } from "../three/blackhole/starfield";
 import { createGravityGrid } from "../three/blackhole/gravityGrid";
 import { createAccretionDisk } from "../three/blackhole/accretionDisk";
 import { createOrbitingBodies } from "../three/blackhole/orbitingBodies";
+import { createJets } from "../three/blackhole/jets";
 import { LensingShader } from "../three/blackhole/lensingShader";
+import { createDysonSphere } from "../three/blackhole/dysonSphere";
+import { createEinsteinRing } from "../three/blackhole/einsteinRing";
+import { createTidalDebris } from "../three/blackhole/tidalDebris";
 
 const container = ref<HTMLDivElement | null>(null);
 
@@ -45,7 +49,7 @@ onMounted(() => {
   controls.enableDamping = true;
   controls.dampingFactor = 0.08;
   controls.minDistance = 4.5;
-  controls.maxDistance = 42;
+  controls.maxDistance = 50;
   // Keep the camera above the gravity-well grid so users can freely orbit
   // 360° around the black hole without flipping underneath the "floor".
   controls.minPolarAngle = THREE.MathUtils.degToRad(15);
@@ -69,8 +73,21 @@ onMounted(() => {
   const gravityGrid = createGravityGrid();
   const accretionDisk = createAccretionDisk();
   const orbitingBodies = createOrbitingBodies();
+  const jets = createJets();
+  const dysonSphere = createDysonSphere();
+  const einsteinRing = createEinsteinRing();
+  const tidalDebris = createTidalDebris();
 
-  scene.add(starfield, gravityGrid, accretionDisk.points, orbitingBodies.group);
+  scene.add(
+    starfield,
+    gravityGrid,
+    accretionDisk.points,
+    orbitingBodies.group,
+    jets.points,
+    dysonSphere.group,
+    einsteinRing,
+    tidalDebris,
+  );
 
   const composer = new EffectComposer(renderer);
   composer.addPass(new RenderPass(scene, camera));
@@ -108,6 +125,8 @@ onMounted(() => {
     const dt = Math.min(clock.getDelta(), 0.1);
     accretionDisk.update(dt);
     orbitingBodies.update(dt);
+    jets.update(dt);
+    dysonSphere.update(dt);
     controls.update();
     composer.render();
   }
