@@ -5,5 +5,7 @@ import vue from '@astrojs/vue';
 
 // https://astro.build/config
 export default defineConfig({
-  integrations: [vue()]
+  site: 'https://Lucaka.github.io',
+  base: '/astro-blog',
+  integrations: [vue()],
 });
