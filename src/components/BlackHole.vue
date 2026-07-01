@@ -20,8 +20,6 @@ import { createTidalDebris } from "../three/blackhole/tidalDebris";
 
 const container = ref<HTMLDivElement | null>(null);
 
-const IDLE_AUTOROTATE_DELAY = 2500;
-
 onMounted(() => {
   const el = container.value;
   if (!el) return;
@@ -54,21 +52,6 @@ onMounted(() => {
   // 360° around the black hole without flipping underneath the "floor".
   controls.minPolarAngle = THREE.MathUtils.degToRad(15);
   controls.maxPolarAngle = THREE.MathUtils.degToRad(85);
-  controls.autoRotate = true;
-  controls.autoRotateSpeed = 0.45;
-
-  let idleTimer: ReturnType<typeof setTimeout> | null = null;
-  controls.addEventListener("start", () => {
-    controls.autoRotate = false;
-    if (idleTimer) clearTimeout(idleTimer);
-  });
-  controls.addEventListener("end", () => {
-    if (idleTimer) clearTimeout(idleTimer);
-    idleTimer = setTimeout(() => {
-      controls.autoRotate = true;
-    }, IDLE_AUTOROTATE_DELAY);
-  });
-
   const starfield = createStarfield();
   const gravityGrid = createGravityGrid();
   const accretionDisk = createAccretionDisk();
@@ -134,7 +117,6 @@ onMounted(() => {
 
   onBeforeUnmount(() => {
     cancelAnimationFrame(frameId);
-    if (idleTimer) clearTimeout(idleTimer);
     window.removeEventListener("resize", handleResize);
     controls.dispose();
     composer.dispose();
