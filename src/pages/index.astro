@@ -1,0 +1,26 @@
+---
+import BlackHole from "../components/BlackHole.vue";
+---
+
+<html lang="zh-Hant">
+	<head>
+		<meta charset="utf-8" />
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="generator" content={Astro.generator} />
+		<title>黑洞視覺化</title>
+	</head>
+	<body>
+		<BlackHole client:only="vue" />
+	</body>
+</html>
+
+<style is:global>
+	html,
+	body {
+		margin: 0;
+		padding: 0;
+		background: #000;
+		overflow: hidden;
+	}
+</style>

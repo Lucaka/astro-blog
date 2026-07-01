@@ -1,0 +1,157 @@
+<script setup lang="ts">
+import { onBeforeUnmount, onMounted, ref } from "vue";
+import * as THREE from "three";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
+import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
+import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js";
+import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
+import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
+
+import { createStarfield } from "../three/blackhole/starfield";
+import { createGravityGrid } from "../three/blackhole/gravityGrid";
+import { createAccretionDisk } from "../three/blackhole/accretionDisk";
+import { createOrbitingBodies } from "../three/blackhole/orbitingBodies";
+import { LensingShader } from "../three/blackhole/lensingShader";
+
+const container = ref<HTMLDivElement | null>(null);
+
+const IDLE_AUTOROTATE_DELAY = 2500;
+
+onMounted(() => {
+  const el = container.value;
+  if (!el) return;
+
+  const scene = new THREE.Scene();
+
+  const camera = new THREE.PerspectiveCamera(
+    55,
+    el.clientWidth / el.clientHeight,
+    0.1,
+    500,
+  );
+  camera.position.set(0, 5.5, 16);
+
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setSize(el.clientWidth, el.clientHeight);
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.15;
+  el.appendChild(renderer.domElement);
+
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.enablePan = false;
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.08;
+  controls.minDistance = 4.5;
+  controls.maxDistance = 42;
+  // Keep the camera above the gravity-well grid so users can freely orbit
+  // 360° around the black hole without flipping underneath the "floor".
+  controls.minPolarAngle = THREE.MathUtils.degToRad(15);
+  controls.maxPolarAngle = THREE.MathUtils.degToRad(85);
+  controls.autoRotate = true;
+  controls.autoRotateSpeed = 0.45;
+
+  let idleTimer: ReturnType<typeof setTimeout> | null = null;
+  controls.addEventListener("start", () => {
+    controls.autoRotate = false;
+    if (idleTimer) clearTimeout(idleTimer);
+  });
+  controls.addEventListener("end", () => {
+    if (idleTimer) clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => {
+      controls.autoRotate = true;
+    }, IDLE_AUTOROTATE_DELAY);
+  });
+
+  const starfield = createStarfield();
+  const gravityGrid = createGravityGrid();
+  const accretionDisk = createAccretionDisk();
+  const orbitingBodies = createOrbitingBodies();
+
+  scene.add(starfield, gravityGrid, accretionDisk.points, orbitingBodies.group);
+
+  const composer = new EffectComposer(renderer);
+  composer.addPass(new RenderPass(scene, camera));
+
+  const lensingPass = new ShaderPass(LensingShader);
+  lensingPass.uniforms.uAspect.value = el.clientWidth / el.clientHeight;
+  composer.addPass(lensingPass);
+
+  const bloomPass = new UnrealBloomPass(
+    new THREE.Vector2(el.clientWidth, el.clientHeight),
+    1.15,
+    0.6,
+    0.15,
+  );
+  composer.addPass(bloomPass);
+  composer.addPass(new OutputPass());
+
+  function handleResize() {
+    const width = el!.clientWidth;
+    const height = el!.clientHeight;
+    camera.aspect = width / height;
+    camera.updateProjectionMatrix();
+    renderer.setSize(width, height);
+    composer.setSize(width, height);
+    bloomPass.setSize(width, height);
+    lensingPass.uniforms.uAspect.value = width / height;
+  }
+  window.addEventListener("resize", handleResize);
+
+  const clock = new THREE.Clock();
+  let frameId = 0;
+
+  function animate() {
+    frameId = requestAnimationFrame(animate);
+    const dt = Math.min(clock.getDelta(), 0.1);
+    accretionDisk.update(dt);
+    orbitingBodies.update(dt);
+    controls.update();
+    composer.render();
+  }
+  animate();
+
+  onBeforeUnmount(() => {
+    cancelAnimationFrame(frameId);
+    if (idleTimer) clearTimeout(idleTimer);
+    window.removeEventListener("resize", handleResize);
+    controls.dispose();
+    composer.dispose();
+    renderer.dispose();
+    el.removeChild(renderer.domElement);
+
+    scene.traverse((object) => {
+      if (object instanceof THREE.Mesh || object instanceof THREE.Points) {
+        object.geometry.dispose();
+        const material = object.material;
+        if (Array.isArray(material)) {
+          material.forEach((m) => m.dispose());
+        } else {
+          material.dispose();
+        }
+      }
+    });
+  });
+});
+</script>
+
+<template>
+  <div ref="container" class="black-hole-canvas"></div>
+</template>
+
+<style scoped>
+.black-hole-canvas {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  background: #000;
+  overflow: hidden;
+}
+
+.black-hole-canvas :deep(canvas) {
+  display: block;
+}
+</style>
