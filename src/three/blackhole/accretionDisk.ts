@@ -2,11 +2,13 @@ import * as THREE from "three";
 import { createGlowSpriteTexture } from "./particleTexture";
 import { createPointSpriteMaterial } from "./pointSpriteMaterial";
 
+// Palette pulled toward the spec's deep blue/violet: hot blue-white core
+// cooling through periwinkle to a deep indigo rim (was warm orange -> red).
 const COLOR_STOPS: Array<{ t: number; color: THREE.Color }> = [
   { t: 0, color: new THREE.Color(0xcfe8ff) }, // innermost: blue-white, hottest
   { t: 0.25, color: new THREE.Color(0xffffff) },
-  { t: 0.55, color: new THREE.Color(0xffa64d) },
-  { t: 1, color: new THREE.Color(0x661a0d) }, // outer edge: cool deep red
+  { t: 0.55, color: new THREE.Color(0x8fa3ff) },
+  { t: 1, color: new THREE.Color(0x2b1660) }, // outer edge: deep violet
 ];
 
 function colorForT(t: number, out: THREE.Color): THREE.Color {

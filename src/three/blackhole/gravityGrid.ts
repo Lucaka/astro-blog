@@ -5,12 +5,17 @@ import * as THREE from "three";
  * near the center, the classic "spacetime curvature" diagram. The dip is
  * computed in the vertex shader so it costs nothing on the CPU per frame.
  */
+export interface GravityGrid {
+  lines: THREE.LineSegments;
+  update: (dt: number) => void;
+}
+
 export function createGravityGrid(options?: {
   size?: number;
   segments?: number;
   depth?: number;
   falloff?: number;
-}): THREE.LineSegments {
+}): GravityGrid {
   const size = options?.size ?? 20;
   const segments = options?.segments ?? 40;
   const depth = options?.depth ?? 4;
@@ -92,10 +97,13 @@ export function createGravityGrid(options?: {
   const lines = new THREE.LineSegments(geometry, material);
   lines.position.y = -3.5;
 
-  const startTime = performance.now();
-  lines.onBeforeRender = () => {
-    material.uniforms.uTime.value = (performance.now() - startTime) / 1000;
-  };
+  // Driven by the component's simulation delta (not wall-clock time) so the
+  // ripple respects reading-mode slowdown and prefers-reduced-motion.
+  let time = 0;
+  function update(dt: number) {
+    time += dt;
+    material.uniforms.uTime.value = time;
+  }
 
-  return lines;
+  return { lines, update };
 }

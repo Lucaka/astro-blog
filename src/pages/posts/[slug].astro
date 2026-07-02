@@ -1,0 +1,260 @@
+---
+import { getCollection, render } from "astro:content";
+import { CATEGORY_META } from "../../data/posts";
+import { parseDisplayDate, readingTimeMinutes, postPath } from "../../utils/posts";
+
+/**
+ * Real, statically generated page for every post: shareable, indexable,
+ * readable without JavaScript. The universe on the index page pushState()s
+ * to these URLs when a star opens, so deep links and the modal stay in sync.
+ */
+export async function getStaticPaths() {
+  const entries = await getCollection("posts");
+  return entries.map((entry) => ({
+    params: { slug: entry.id },
+    props: { entry },
+  }));
+}
+
+const { entry } = Astro.props;
+const { Content } = await render(entry);
+const { title, date, category, tags, summary } = entry.data;
+
+const meta = CATEGORY_META[category];
+const color = "#" + meta.color.toString(16).padStart(6, "0");
+const minutes = readingTimeMinutes(entry.body ?? "");
+const published = parseDisplayDate(date);
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const canonical = new URL(postPath(entry.id), Astro.site);
+---
+
+<html lang="zh-Hant">
+	<head>
+		<meta charset="utf-8" />
+		<link rel="icon" type="image/svg+xml" href={`${base}/favicon.svg`} />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="generator" content={Astro.generator} />
+		<title>{title} — James Universe</title>
+		<meta name="description" content={summary} />
+		<link rel="canonical" href={canonical} />
+		<link
+			rel="alternate"
+			type="application/rss+xml"
+			title="James Universe"
+			href={`${base}/rss.xml`}
+		/>
+		<meta property="og:type" content="article" />
+		<meta property="og:title" content={title} />
+		<meta property="og:description" content={summary} />
+		<meta property="og:url" content={canonical} />
+		<meta property="og:site_name" content="James Universe" />
+		<meta property="article:published_time" content={published.toISOString()} />
+		{tags.map((tag) => <meta property="article:tag" content={tag} />)}
+		<meta name="twitter:card" content="summary" />
+	</head>
+	<body>
+		<a class="skip-link" href="#article">跳到文章內容</a>
+
+		<header class="site-header">
+			<a class="back-link" href={`${base}/`}>← 返回宇宙</a>
+			<a class="feed-link" href={`${base}/rss.xml`}>RSS</a>
+		</header>
+
+		<main id="article" class="post">
+			<article>
+				<p class="post__category" style={`color: ${color}`}>
+					<span class="post__dot" style={`background: ${color}`}></span>
+					{meta.label}
+				</p>
+				<h1 class="post__title">{title}</h1>
+				<p class="post__meta">
+					<time datetime={published.toISOString().slice(0, 10)}>{date}</time>
+					<span aria-hidden="true">·</span>
+					約 {minutes} 分鐘
+				</p>
+				<ul class="post__tags" aria-label="標籤">
+					{tags.map((tag) => <li>{tag}</li>)}
+				</ul>
+				<p class="post__summary">{summary}</p>
+				<div class="post__body">
+					<Content />
+				</div>
+			</article>
+		</main>
+
+		<footer class="site-footer">
+			<a href={`${base}/`}>James Universe</a> — 在宇宙裡探索所有文章
+		</footer>
+	</body>
+</html>
+
+<style is:global>
+	:root {
+		color-scheme: dark;
+	}
+	html,
+	body {
+		margin: 0;
+		padding: 0;
+		background: radial-gradient(ellipse at 50% -10%, #131a30 0%, #05070f 60%, #000 100%);
+		min-height: 100vh;
+		color: #eef2ff;
+		font-family:
+			ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+	}
+
+	.skip-link {
+		position: absolute;
+		left: -9999px;
+		top: 0;
+		padding: 8px 14px;
+		background: #1b2440;
+		color: #fff;
+		border-radius: 0 0 8px 0;
+		z-index: 10;
+	}
+	.skip-link:focus {
+		left: 0;
+	}
+
+	.site-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		max-width: 720px;
+		margin: 0 auto;
+		padding: 24px clamp(20px, 5vw, 32px) 0;
+	}
+	.site-header a,
+	.site-footer a {
+		color: #8ab4ff;
+		text-decoration: none;
+	}
+	.site-header a:hover,
+	.site-footer a:hover {
+		text-decoration: underline;
+	}
+	.feed-link {
+		font-size: 13px;
+		opacity: 0.8;
+	}
+
+	.post {
+		max-width: 720px;
+		margin: 0 auto;
+		padding: clamp(28px, 6vw, 56px) clamp(20px, 5vw, 32px) 48px;
+	}
+	.post__category {
+		display: inline-flex;
+		align-items: center;
+		gap: 7px;
+		margin: 0;
+		font-size: 13px;
+		font-weight: 600;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+	}
+	.post__dot {
+		width: 8px;
+		height: 8px;
+		border-radius: 50%;
+	}
+	.post__title {
+		margin: 14px 0 8px;
+		font-size: clamp(28px, 5vw, 38px);
+		font-weight: 700;
+		line-height: 1.2;
+	}
+	.post__meta {
+		margin: 0;
+		font-size: 14px;
+		opacity: 0.6;
+		display: flex;
+		gap: 8px;
+	}
+	.post__tags {
+		margin: 18px 0;
+		padding: 0;
+		list-style: none;
+		display: flex;
+		flex-wrap: wrap;
+		gap: 8px;
+	}
+	.post__tags li {
+		font-size: 12px;
+		padding: 3px 10px;
+		border-radius: 8px;
+		background: rgba(255, 255, 255, 0.07);
+		border: 1px solid rgba(255, 255, 255, 0.08);
+	}
+	.post__summary {
+		margin: 8px 0 24px;
+		font-size: 17px;
+		line-height: 1.6;
+		opacity: 0.92;
+	}
+	.post__body {
+		font-size: 16px;
+		line-height: 1.85;
+		opacity: 0.88;
+	}
+	.post__body p {
+		margin: 0 0 14px;
+	}
+	.post__body strong {
+		color: #fff;
+		font-weight: 600;
+	}
+	.post__body h2,
+	.post__body h3 {
+		margin: 28px 0 10px;
+		line-height: 1.3;
+		color: #fff;
+	}
+	.post__body ul,
+	.post__body ol {
+		margin: 0 0 14px;
+		padding-left: 22px;
+	}
+	.post__body li {
+		margin: 5px 0;
+	}
+	.post__body blockquote {
+		margin: 14px 0;
+		padding: 8px 16px;
+		border-left: 2px solid rgba(255, 255, 255, 0.25);
+		opacity: 0.8;
+		font-style: italic;
+	}
+	.post__body a {
+		color: #8ab4ff;
+	}
+	.post__body code {
+		padding: 1px 5px;
+		border-radius: 5px;
+		background: rgba(255, 255, 255, 0.1);
+		font-size: 0.9em;
+	}
+	.post__body pre {
+		padding: 16px 18px;
+		border-radius: 12px;
+		border: 1px solid rgba(255, 255, 255, 0.08);
+		overflow-x: auto;
+		font-size: 14px;
+		line-height: 1.6;
+	}
+	.post__body pre code {
+		padding: 0;
+		background: none;
+		font-size: inherit;
+	}
+
+	.site-footer {
+		max-width: 720px;
+		margin: 0 auto;
+		padding: 0 clamp(20px, 5vw, 32px) 40px;
+		font-size: 13px;
+		opacity: 0.6;
+	}
+</style>

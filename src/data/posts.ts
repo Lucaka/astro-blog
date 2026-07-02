@@ -25,6 +25,8 @@ export interface Post {
   tags: string[];
   /** One-line summary shown on hover and atop the reading panel. */
   summary: string;
+  /** Estimated reading time in minutes (computed at build time). */
+  minutes?: number;
 }
 
 /** Per-category presentation: the star tint and its human-readable label. */

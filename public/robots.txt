@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://lucaka.github.io/astro-blog/sitemap-index.xml

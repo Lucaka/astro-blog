@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
@@ -20,6 +20,7 @@ import { createEinsteinRing } from "../three/blackhole/einsteinRing";
 import { createTidalDebris } from "../three/blackhole/tidalDebris";
 import { createContentStars } from "../three/blackhole/contentStars";
 import { CATEGORY_META, type Post, type PostCategory } from "../data/posts";
+import { postPath } from "../utils/posts";
 
 // Post metadata comes from the Markdown content collection via index.astro.
 const props = defineProps<{ posts: Post[] }>();
@@ -34,6 +35,34 @@ const hoverStyle = ref<{ left: string; top: string } | null>(null);
 // server-rendered Markdown body (read from the hidden node by slug).
 const selectedPost = ref<Post | null>(null);
 const selectedHtml = ref("");
+const panelEl = ref<HTMLElement | null>(null);
+
+// Legend filter: empty set = show every category.
+const activeCategories = ref<Set<PostCategory>>(new Set());
+
+// Search Galaxy: type a keyword, pick a result, the camera flies to its star.
+const searchQuery = ref("");
+const searchResults = computed(() => {
+  const q = searchQuery.value.trim().toLowerCase();
+  if (!q) return [];
+  return props.posts
+    .filter(
+      (p) =>
+        p.title.toLowerCase().includes(q) ||
+        p.summary.toLowerCase().includes(q) ||
+        p.tags.some((t) => t.toLowerCase().includes(q)) ||
+        catLabel(p.category).toLowerCase().includes(q),
+    )
+    .slice(0, 8);
+});
+
+// First-visit hint, shown once then remembered in localStorage.
+const showHint = ref(false);
+const HINT_KEY = "universe-hint-seen";
+
+// Bridges into the three.js world, assigned once the scene exists.
+let flyToStar: (slug: string) => void = () => {};
+let applyFilter: (categories: Set<PostCategory>) => void = () => {};
 
 // Category legend entries for the corner key.
 const legend = (Object.keys(CATEGORY_META) as PostCategory[]).map((c) => ({
@@ -48,18 +77,130 @@ function catColor(category: PostCategory): string {
 function catLabel(category: PostCategory): string {
   return CATEGORY_META[category].label;
 }
-function openPost(post: Post) {
+
+// --- Deep links: modal state lives in the URL ------------------------------
+// Opening a star pushState()s to the post's real /posts/[slug]/ page, so the
+// address bar is always shareable; reload lands on the static article page,
+// and Back/Forward open and close the modal via popstate.
+function openPost(post: Post, pushHistory = true) {
   selectedHtml.value =
     document.getElementById(`post-body-${post.slug}`)?.innerHTML ?? "";
   selectedPost.value = post;
+  if (pushHistory) {
+    history.pushState({ universe: post.slug }, "", postPath(post.slug));
+  }
 }
 function closeModal() {
-  selectedPost.value = null;
+  if (history.state?.universe) {
+    // We pushed this entry: going back restores the index URL and the
+    // popstate handler clears the modal, keeping history clean.
+    history.back();
+  } else {
+    selectedPost.value = null;
+  }
+}
+function handlePopstate(event: PopStateEvent) {
+  const slug = event.state?.universe as string | undefined;
+  const post = slug ? props.posts.find((p) => p.slug === slug) : undefined;
+  if (post) {
+    openPost(post, false);
+  } else {
+    selectedPost.value = null;
+  }
+}
+
+function toggleCategory(category: PostCategory) {
+  const next = new Set(activeCategories.value);
+  if (next.has(category)) {
+    next.delete(category);
+  } else {
+    next.add(category);
+  }
+  activeCategories.value = next;
+  applyFilter(next);
+}
+
+function selectSearchResult(post: Post) {
+  searchQuery.value = "";
+  flyToStar(post.slug);
+}
+function onSearchEnter() {
+  const first = searchResults.value[0];
+  if (first) selectSearchResult(first);
+}
+
+// --- Modal accessibility: focus management + trap + Esc --------------------
+let lastFocused: HTMLElement | null = null;
+watch(selectedPost, async (post) => {
+  if (post) {
+    lastFocused =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+    await nextTick();
+    panelEl.value?.focus();
+  } else if (lastFocused) {
+    lastFocused.focus();
+    lastFocused = null;
+  }
+});
+
+function handlePanelKeydown(event: KeyboardEvent) {
+  if (event.key === "Escape") {
+    event.preventDefault();
+    closeModal();
+    return;
+  }
+  if (event.key !== "Tab" || !panelEl.value) return;
+  const focusables = panelEl.value.querySelectorAll<HTMLElement>(
+    'button, a[href], [tabindex]:not([tabindex="-1"])',
+  );
+  if (focusables.length === 0) return;
+  const first = focusables[0];
+  const last = focusables[focusables.length - 1];
+  const active = document.activeElement;
+  if (event.shiftKey && (active === first || active === panelEl.value)) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && active === last) {
+    event.preventDefault();
+    first.focus();
+  }
 }
 
 onMounted(() => {
   const el = container.value;
   if (!el) return;
+
+  window.addEventListener("popstate", handlePopstate);
+
+  // First-visit hint: fade in once, dismissed by time or first interaction.
+  let hintTimer = 0;
+  try {
+    if (!localStorage.getItem(HINT_KEY)) {
+      showHint.value = true;
+      localStorage.setItem(HINT_KEY, "1");
+      hintTimer = window.setTimeout(() => (showHint.value = false), 7000);
+    }
+  } catch {
+    /* private mode: just skip the hint persistence */
+  }
+
+  // Low-power heuristic (small screens / touch): fewer particles and a lower
+  // pixel-ratio cap keep phones cool; inertia off avoids fighting touch drags.
+  const coarsePointer = window.matchMedia("(pointer: coarse)").matches;
+  const smallScreen = window.matchMedia("(max-width: 768px)").matches;
+  const lowPower = coarsePointer || smallScreen;
+
+  // Respect prefers-reduced-motion (live, in case the OS setting changes):
+  // orbital/drift animation stops and bloom is dialed down, but the scene
+  // still renders and stars stay hoverable/clickable.
+  const reducedQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+  let reducedMotion = reducedQuery.matches;
+  const handleReducedChange = (e: MediaQueryListEvent) => {
+    reducedMotion = e.matches;
+  };
+  reducedQuery.addEventListener("change", handleReducedChange);
 
   const scene = new THREE.Scene();
 
@@ -72,7 +213,7 @@ onMounted(() => {
   camera.position.set(0, 5.5, 16);
 
   const renderer = new THREE.WebGLRenderer({ antialias: true });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, lowPower ? 1.5 : 2));
   renderer.setSize(el.clientWidth, el.clientHeight);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -84,7 +225,7 @@ onMounted(() => {
 
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.enablePan = false;
-  controls.enableDamping = true;
+  controls.enableDamping = !coarsePointer;
   controls.dampingFactor = 0.08;
   controls.minDistance = 4.5;
   controls.maxDistance = 50;
@@ -92,12 +233,12 @@ onMounted(() => {
   // 360° around the black hole without flipping underneath the "floor".
   controls.minPolarAngle = THREE.MathUtils.degToRad(15);
   controls.maxPolarAngle = THREE.MathUtils.degToRad(85);
-  const starfield = createStarfield();
+  const starfield = createStarfield(lowPower ? 1800 : 4000);
   const nebula = createNebula();
   const gravityGrid = createGravityGrid();
-  const accretionDisk = createAccretionDisk();
+  const accretionDisk = createAccretionDisk({ count: lowPower ? 3000 : 7000 });
   const orbitingBodies = createOrbitingBodies();
-  const jets = createJets();
+  const jets = createJets({ countPerJet: lowPower ? 500 : 1200 });
   const dysonSphere = createDysonSphere();
   const einsteinRing = createEinsteinRing();
   const tidalDebris = createTidalDebris();
@@ -106,7 +247,7 @@ onMounted(() => {
   scene.add(
     starfield,
     nebula,
-    gravityGrid,
+    gravityGrid.lines,
     accretionDisk.points,
     orbitingBodies.group,
     jets.points,
@@ -115,6 +256,9 @@ onMounted(() => {
     tidalDebris,
     contentStars.group,
   );
+
+  applyFilter = (categories) =>
+    contentStars.setFilter(categories.size > 0 ? categories : null);
 
   const composer = new EffectComposer(renderer);
   composer.addPass(new RenderPass(scene, camera));
@@ -170,6 +314,21 @@ onMounted(() => {
     controls.enabled = post === null;
   });
 
+  // --- Search fly-to --------------------------------------------------------
+  // Picking a search result pins the star (paused + highlighted) and eases the
+  // camera along the origin->star ray to just beyond it, so the star ends up
+  // centered with the black hole behind. Polar angle is clamped to the
+  // controls' limits so OrbitControls never fights the flight.
+  let flight: { from: THREE.Vector3; t: number; star: ReturnType<typeof contentStars.findBySlug> } | null = null;
+  const flightDest = new THREE.Vector3();
+  const flightSpherical = new THREE.Spherical();
+  flyToStar = (slug) => {
+    const star = contentStars.findBySlug(slug);
+    if (!star) return;
+    contentStars.focused = star;
+    flight = { from: camera.position.clone(), t: 0, star };
+  };
+
   // --- Content-star picking ----------------------------------------------
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2(-2, -2); // offscreen until first move
@@ -187,6 +346,11 @@ onMounted(() => {
   function handlePointerDown(event: PointerEvent) {
     downAt.x = event.clientX;
     downAt.y = event.clientY;
+    // Grabbing the scene dismisses the hint and hands control back from any
+    // in-progress search flight.
+    showHint.value = false;
+    flight = null;
+    contentStars.focused = null;
   }
   function handlePointerUp(event: PointerEvent) {
     // Distinguish a click from an orbit-drag: only treat near-stationary
@@ -216,8 +380,10 @@ onMounted(() => {
 
   const clock = new THREE.Clock();
   let frameId = 0;
+  let running = false;
 
   function animate() {
+    if (!running) return;
     frameId = requestAnimationFrame(animate);
     const dt = Math.min(clock.getDelta(), 0.1);
 
@@ -231,7 +397,9 @@ onMounted(() => {
       mix,
     );
     bloomPass.strength = THREE.MathUtils.lerp(
-      EXPLORE_STATE.bloom,
+      // Reduced motion also means reduced glow: bloom is the single biggest
+      // "shimmer" contributor, so it drops with the animation.
+      reducedMotion ? 0.32 : EXPLORE_STATE.bloom,
       READING_STATE.bloom,
       mix,
     );
@@ -243,15 +411,38 @@ onMounted(() => {
     for (const material of spriteMaterials) {
       material.uniforms.uOpacity.value = opacity;
     }
-    // Slow the motion in reading mode; controls keep real time for input feel.
-    const simDt =
-      dt * THREE.MathUtils.lerp(EXPLORE_STATE.speed, READING_STATE.speed, mix);
+    // Slow the motion in reading mode, stop it entirely under
+    // prefers-reduced-motion; controls keep real time for input feel.
+    const motion = reducedMotion
+      ? 0
+      : THREE.MathUtils.lerp(EXPLORE_STATE.speed, READING_STATE.speed, mix);
+    const simDt = dt * motion;
 
     accretionDisk.update(simDt, camera);
+    gravityGrid.update(simDt);
     orbitingBodies.update(simDt);
     jets.update(simDt);
     dysonSphere.update(simDt);
-    contentStars.update(simDt);
+    // Content stars get real dt for hover/filter easing, `motion` for orbits.
+    contentStars.update(dt, motion);
+
+    // Search flight: ease the camera toward the pinned star's viewpoint.
+    if (flight?.star) {
+      flight.t += reducedMotion ? 1 : dt / 1.3;
+      const a = Math.min(1, flight.t);
+      const k = a < 0.5 ? 4 * a * a * a : 1 - Math.pow(-2 * a + 2, 3) / 2;
+      const starPos = flight.star.mesh.position;
+      flightDest.copy(starPos).normalize().multiplyScalar(starPos.length() + 6.5);
+      flightSpherical.setFromVector3(flightDest);
+      flightSpherical.phi = THREE.MathUtils.clamp(
+        flightSpherical.phi,
+        controls.minPolarAngle,
+        controls.maxPolarAngle,
+      );
+      flightDest.setFromSpherical(flightSpherical);
+      camera.position.lerpVectors(flight.from, flightDest, k);
+      if (a >= 1) flight = null;
+    }
 
     // Hover picking: skip while a post is open (the panel covers the scene).
     if (selectedPost.value) {
@@ -280,12 +471,36 @@ onMounted(() => {
     controls.update();
     composer.render();
   }
-  animate();
+
+  // Pause the whole render loop while the tab is hidden: no rAF, no GPU work.
+  function start() {
+    if (running) return;
+    running = true;
+    clock.getDelta(); // swallow the time spent hidden
+    frameId = requestAnimationFrame(animate);
+  }
+  function stop() {
+    running = false;
+    cancelAnimationFrame(frameId);
+  }
+  function handleVisibility() {
+    if (document.hidden) {
+      stop();
+    } else {
+      start();
+    }
+  }
+  document.addEventListener("visibilitychange", handleVisibility);
+  start();
 
   onBeforeUnmount(() => {
-    cancelAnimationFrame(frameId);
+    stop();
+    window.clearTimeout(hintTimer);
+    window.removeEventListener("popstate", handlePopstate);
     window.removeEventListener("resize", handleResize);
     window.removeEventListener("blackhole:reading", handleReading as EventListener);
+    document.removeEventListener("visibilitychange", handleVisibility);
+    reducedQuery.removeEventListener("change", handleReducedChange);
     renderer.domElement.removeEventListener("pointermove", handlePointerMove);
     renderer.domElement.removeEventListener("pointerdown", handlePointerDown);
     renderer.domElement.removeEventListener("pointerup", handlePointerUp);
@@ -315,13 +530,67 @@ onMounted(() => {
   <div class="universe">
     <div ref="container" class="black-hole-canvas"></div>
 
-    <!-- Category legend: minimal key, fades out while reading. -->
+    <!-- Search Galaxy: keyword -> fly the camera to the matching star. -->
+    <div class="search" :class="{ 'search--hidden': selectedPost }">
+      <input
+        v-model="searchQuery"
+        class="search__input"
+        type="search"
+        placeholder="搜尋星系…"
+        aria-label="搜尋文章"
+        @keydown.enter.prevent="onSearchEnter"
+        @keydown.escape="searchQuery = ''"
+      />
+      <ul v-if="searchResults.length" class="search__results" role="listbox">
+        <li v-for="post in searchResults" :key="post.slug">
+          <button
+            type="button"
+            class="search__result"
+            @click="selectSearchResult(post)"
+          >
+            <span
+              class="search__dot"
+              :style="{ background: catColor(post.category) }"
+            ></span>
+            <span class="search__result-title">{{ post.title }}</span>
+            <span class="search__result-date">{{ post.date }}</span>
+          </button>
+        </li>
+      </ul>
+      <p
+        v-else-if="searchQuery.trim()"
+        class="search__empty"
+        role="status"
+      >
+        沒有符合的星星
+      </p>
+    </div>
+
+    <!-- Category legend: click a category to spotlight only its stars. -->
     <div class="legend" :class="{ 'legend--hidden': selectedPost }">
-      <span v-for="item in legend" :key="item.category" class="legend__item">
+      <button
+        v-for="item in legend"
+        :key="item.category"
+        type="button"
+        class="legend__item"
+        :class="{
+          'legend__item--muted':
+            activeCategories.size > 0 && !activeCategories.has(item.category),
+        }"
+        :aria-pressed="activeCategories.has(item.category)"
+        @click="toggleCategory(item.category)"
+      >
         <span class="legend__dot" :style="{ background: item.color }"></span>
         {{ item.label }}
-      </span>
+      </button>
     </div>
+
+    <!-- First-visit hint: one quiet line, gone after a moment or a touch. -->
+    <Transition name="hint-fade">
+      <p v-if="showHint" class="hint" aria-hidden="true">
+        拖曳探索宇宙 · 點擊星星閱讀文章
+      </p>
+    </Transition>
 
     <!-- Hover tooltip: minimal card floated above the focused star. -->
     <div
@@ -330,7 +599,12 @@ onMounted(() => {
       :style="hoverStyle"
     >
       <div class="star-tooltip__title">{{ hoveredPost.title }}</div>
-      <div class="star-tooltip__date">{{ hoveredPost.date }}</div>
+      <div class="star-tooltip__date">
+        {{ hoveredPost.date
+        }}<template v-if="hoveredPost.minutes">
+          · 約 {{ hoveredPost.minutes }} 分鐘</template
+        >
+      </div>
       <div class="star-tooltip__tags">
         <span
           v-for="tag in hoveredPost.tags"
@@ -343,9 +617,21 @@ onMounted(() => {
 
     <!-- Reading panel: glassmorphism card shown when a post is open. -->
     <Transition name="panel-fade">
-      <div v-if="selectedPost" class="reading-scrim" @click.self="closeModal">
-        <article class="reading-panel">
-          <button class="reading-panel__close" aria-label="Close" @click="closeModal">
+      <div
+        v-if="selectedPost"
+        class="reading-scrim"
+        @click.self="closeModal"
+        @keydown="handlePanelKeydown"
+      >
+        <article
+          ref="panelEl"
+          class="reading-panel"
+          role="dialog"
+          aria-modal="true"
+          :aria-label="selectedPost.title"
+          tabindex="-1"
+        >
+          <button class="reading-panel__close" aria-label="關閉文章" @click="closeModal">
             ×
           </button>
           <div
@@ -358,8 +644,17 @@ onMounted(() => {
             ></span>
             {{ catLabel(selectedPost.category) }}
           </div>
-          <h1 class="reading-panel__title">{{ selectedPost.title }}</h1>
-          <div class="reading-panel__meta">{{ selectedPost.date }}</div>
+          <h2 class="reading-panel__title">{{ selectedPost.title }}</h2>
+          <div class="reading-panel__meta">
+            {{ selectedPost.date
+            }}<template v-if="selectedPost.minutes">
+              · 約 {{ selectedPost.minutes }} 分鐘</template
+            >
+            ·
+            <a class="reading-panel__permalink" :href="postPath(selectedPost.slug)"
+              >單篇頁面 ↗</a
+            >
+          </div>
           <div class="reading-panel__tags">
             <span
               v-for="tag in selectedPost.tags"
@@ -398,6 +693,93 @@ onMounted(() => {
   display: block;
 }
 
+/* --- Search Galaxy -------------------------------------------------------- */
+.search {
+  position: fixed;
+  top: clamp(14px, 3vw, 24px);
+  right: clamp(14px, 3vw, 28px);
+  z-index: 20;
+  width: min(260px, calc(100vw - 32px));
+  transition:
+    opacity 0.35s ease,
+    transform 0.35s ease;
+}
+.search--hidden {
+  opacity: 0;
+  transform: translateY(-8px);
+  pointer-events: none;
+}
+.search__input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 9px 14px;
+  border-radius: 12px;
+  background: rgba(12, 16, 28, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  color: #eef2ff;
+  font-size: 13px;
+  outline: none;
+}
+.search__input::placeholder {
+  color: rgba(215, 222, 245, 0.55);
+}
+.search__input:focus {
+  border-color: rgba(138, 180, 255, 0.6);
+}
+.search__results,
+.search__empty {
+  margin: 8px 0 0;
+  padding: 6px;
+  list-style: none;
+  border-radius: 12px;
+  background: rgba(12, 16, 28, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.search__empty {
+  padding: 10px 12px;
+  color: #aab4d4;
+  font-size: 12px;
+}
+.search__result {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: #eef2ff;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+.search__result:hover,
+.search__result:focus-visible {
+  background: rgba(255, 255, 255, 0.08);
+}
+.search__dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+.search__result-title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.search__result-date {
+  flex: none;
+  font-size: 11px;
+  opacity: 0.55;
+}
+
 /* --- Category legend ----------------------------------------------------- */
 .legend {
   position: fixed;
@@ -406,8 +788,8 @@ onMounted(() => {
   z-index: 20;
   display: flex;
   flex-wrap: wrap;
-  gap: 14px;
-  padding: 10px 14px;
+  gap: 4px;
+  padding: 6px 8px;
   border-radius: 12px;
   background: rgba(12, 16, 28, 0.35);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -428,12 +810,63 @@ onMounted(() => {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  padding: 4px 8px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: inherit;
+  font: inherit;
   opacity: 0.85;
+  cursor: pointer;
+  transition:
+    opacity 0.25s ease,
+    background 0.15s ease;
+}
+.legend__item:hover,
+.legend__item:focus-visible {
+  background: rgba(255, 255, 255, 0.08);
+}
+.legend__item[aria-pressed="true"] {
+  background: rgba(255, 255, 255, 0.12);
+  opacity: 1;
+}
+.legend__item--muted {
+  opacity: 0.35;
 }
 .legend__dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
+}
+
+/* --- First-visit hint ------------------------------------------------------ */
+.hint {
+  position: fixed;
+  left: 50%;
+  bottom: clamp(72px, 12vh, 120px);
+  transform: translateX(-50%);
+  z-index: 20;
+  margin: 0;
+  padding: 10px 18px;
+  border-radius: 999px;
+  background: rgba(12, 16, 28, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  color: #d7def5;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  pointer-events: none;
+}
+.hint-fade-enter-active {
+  transition: opacity 1.2s ease 0.8s;
+}
+.hint-fade-leave-active {
+  transition: opacity 0.8s ease;
+}
+.hint-fade-enter-from,
+.hint-fade-leave-to {
+  opacity: 0;
 }
 
 /* --- Hover tooltip: minimal, translucent, follows the star --------------- */
@@ -498,6 +931,9 @@ onMounted(() => {
   box-shadow: 0 8px 40px rgba(0, 0, 0, 0.25);
   color: #eef2ff;
 }
+.reading-panel:focus {
+  outline: none;
+}
 .reading-panel__close {
   position: absolute;
   top: 14px;
@@ -513,7 +949,8 @@ onMounted(() => {
   cursor: pointer;
   transition: background 0.15s ease;
 }
-.reading-panel__close:hover {
+.reading-panel__close:hover,
+.reading-panel__close:focus-visible {
   background: rgba(255, 255, 255, 0.14);
 }
 .reading-panel__category {
@@ -538,7 +975,15 @@ onMounted(() => {
 }
 .reading-panel__meta {
   font-size: 13px;
-  opacity: 0.6;
+  opacity: 0.75;
+}
+.reading-panel__permalink {
+  color: #8ab4ff;
+  text-decoration: none;
+}
+.reading-panel__permalink:hover,
+.reading-panel__permalink:focus-visible {
+  text-decoration: underline;
 }
 .reading-panel__tags {
   margin: 16px 0;
@@ -596,6 +1041,19 @@ onMounted(() => {
   background: rgba(255, 255, 255, 0.1);
   font-size: 13px;
 }
+.reading-panel__body :deep(pre) {
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  overflow-x: auto;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.reading-panel__body :deep(pre code) {
+  padding: 0;
+  background: none;
+  font-size: inherit;
+}
 
 /* Panel fade/slide transition (slow, per the calm-motion goal). */
 .panel-fade-enter-active,
@@ -616,5 +1074,46 @@ onMounted(() => {
 .panel-fade-leave-to .reading-panel {
   transform: translateX(24px);
   opacity: 0;
+}
+
+/* Reduced motion: keep the UI transitions near-instant as well. */
+@media (prefers-reduced-motion: reduce) {
+  .panel-fade-enter-active,
+  .panel-fade-leave-active,
+  .panel-fade-enter-active .reading-panel,
+  .panel-fade-leave-active .reading-panel,
+  .hint-fade-enter-active,
+  .hint-fade-leave-active,
+  .legend,
+  .search {
+    transition-duration: 0.01s;
+    transition-delay: 0s;
+  }
+}
+
+/* Mobile: the reading panel becomes a full-screen sheet. */
+@media (max-width: 640px) {
+  .reading-scrim {
+    padding: 0;
+    align-items: stretch;
+    justify-content: stretch;
+  }
+  .reading-panel {
+    width: 100vw;
+    max-height: none;
+    height: 100dvh;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+    box-sizing: border-box;
+    padding: 28px 22px 40px;
+    /* More opaque than the desktop card: full-screen text sits directly over
+       the bright bloom ring, so readability wins over the glass effect. */
+    background: rgba(10, 13, 22, 0.72);
+  }
+  .panel-fade-enter-from .reading-panel,
+  .panel-fade-leave-to .reading-panel {
+    transform: translateY(24px);
+  }
 }
 </style>
