@@ -19,7 +19,10 @@ import { createDysonSphere } from "../three/blackhole/dysonSphere";
 import { createEinsteinRing } from "../three/blackhole/einsteinRing";
 import { createTidalDebris } from "../three/blackhole/tidalDebris";
 import { createContentStars } from "../three/blackhole/contentStars";
-import { CATEGORY_META, posts, type Post, type PostCategory } from "../data/posts";
+import { CATEGORY_META, type Post, type PostCategory } from "../data/posts";
+
+// Post metadata comes from the Markdown content collection via index.astro.
+const props = defineProps<{ posts: Post[] }>();
 
 const container = ref<HTMLDivElement | null>(null);
 
@@ -27,14 +30,28 @@ const container = ref<HTMLDivElement | null>(null);
 // The post currently under the cursor, and where to float its tooltip.
 const hoveredPost = ref<Post | null>(null);
 const hoverStyle = ref<{ left: string; top: string } | null>(null);
-// The post whose reading panel is open (null = exploring).
+// The post whose reading panel is open (null = exploring), plus its
+// server-rendered Markdown body (read from the hidden node by slug).
 const selectedPost = ref<Post | null>(null);
+const selectedHtml = ref("");
+
+// Category legend entries for the corner key.
+const legend = (Object.keys(CATEGORY_META) as PostCategory[]).map((c) => ({
+  category: c,
+  label: CATEGORY_META[c].label,
+  color: catColor(c),
+}));
 
 function catColor(category: PostCategory): string {
   return "#" + CATEGORY_META[category].color.toString(16).padStart(6, "0");
 }
 function catLabel(category: PostCategory): string {
   return CATEGORY_META[category].label;
+}
+function openPost(post: Post) {
+  selectedHtml.value =
+    document.getElementById(`post-body-${post.slug}`)?.innerHTML ?? "";
+  selectedPost.value = post;
 }
 function closeModal() {
   selectedPost.value = null;
@@ -84,7 +101,7 @@ onMounted(() => {
   const dysonSphere = createDysonSphere();
   const einsteinRing = createEinsteinRing();
   const tidalDebris = createTidalDebris();
-  const contentStars = createContentStars(posts);
+  const contentStars = createContentStars(props.posts);
 
   scene.add(
     starfield,
@@ -179,7 +196,7 @@ onMounted(() => {
     setPointer(event);
     raycaster.setFromCamera(pointer, camera);
     const hit = raycaster.intersectObjects(contentStars.pickables, false)[0];
-    if (hit) selectedPost.value = hit.object.userData.post as Post;
+    if (hit) openPost(hit.object.userData.post as Post);
   }
   renderer.domElement.addEventListener("pointermove", handlePointerMove);
   renderer.domElement.addEventListener("pointerdown", handlePointerDown);
@@ -298,6 +315,14 @@ onMounted(() => {
   <div class="universe">
     <div ref="container" class="black-hole-canvas"></div>
 
+    <!-- Category legend: minimal key, fades out while reading. -->
+    <div class="legend" :class="{ 'legend--hidden': selectedPost }">
+      <span v-for="item in legend" :key="item.category" class="legend__item">
+        <span class="legend__dot" :style="{ background: item.color }"></span>
+        {{ item.label }}
+      </span>
+    </div>
+
     <!-- Hover tooltip: minimal card floated above the focused star. -->
     <div
       v-if="hoveredPost && !selectedPost && hoverStyle"
@@ -344,7 +369,8 @@ onMounted(() => {
             >
           </div>
           <p class="reading-panel__summary">{{ selectedPost.summary }}</p>
-          <p class="reading-panel__body">{{ selectedPost.body }}</p>
+          <!-- Rendered Markdown from the content collection. -->
+          <div class="reading-panel__body" v-html="selectedHtml"></div>
         </article>
       </div>
     </Transition>
@@ -370,6 +396,44 @@ onMounted(() => {
 
 .black-hole-canvas :deep(canvas) {
   display: block;
+}
+
+/* --- Category legend ----------------------------------------------------- */
+.legend {
+  position: fixed;
+  left: clamp(16px, 3vw, 32px);
+  bottom: clamp(16px, 3vw, 28px);
+  z-index: 20;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: rgba(12, 16, 28, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  color: #d7def5;
+  font-size: 12px;
+  transition:
+    opacity 0.35s ease,
+    transform 0.35s ease;
+}
+.legend--hidden {
+  opacity: 0;
+  transform: translateY(8px);
+  pointer-events: none;
+}
+.legend__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  opacity: 0.85;
+}
+.legend__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
 }
 
 /* --- Hover tooltip: minimal, translucent, follows the star --------------- */
@@ -498,7 +562,39 @@ onMounted(() => {
 .reading-panel__body {
   font-size: 14px;
   line-height: 1.75;
-  opacity: 0.72;
+  opacity: 0.78;
+}
+/* Rendered Markdown (v-html) is unscoped, so reach it with :deep(). */
+.reading-panel__body :deep(p) {
+  margin: 0 0 12px;
+}
+.reading-panel__body :deep(strong) {
+  color: #fff;
+  font-weight: 600;
+}
+.reading-panel__body :deep(ul),
+.reading-panel__body :deep(ol) {
+  margin: 0 0 12px;
+  padding-left: 20px;
+}
+.reading-panel__body :deep(li) {
+  margin: 4px 0;
+}
+.reading-panel__body :deep(blockquote) {
+  margin: 12px 0;
+  padding: 6px 14px;
+  border-left: 2px solid rgba(255, 255, 255, 0.25);
+  opacity: 0.8;
+  font-style: italic;
+}
+.reading-panel__body :deep(a) {
+  color: #8ab4ff;
+}
+.reading-panel__body :deep(code) {
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.1);
+  font-size: 13px;
 }
 
 /* Panel fade/slide transition (slow, per the calm-motion goal). */

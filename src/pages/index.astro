@@ -1,5 +1,31 @@
 ---
+import { getCollection, render } from "astro:content";
 import BlackHole from "../components/BlackHole.vue";
+import type { Post } from "../data/posts";
+
+// Load every star from the Markdown content collection, newest first.
+const entries = (await getCollection("posts")).sort((a, b) =>
+  b.data.date.localeCompare(a.data.date),
+);
+
+// Metadata handed to the 3D island (stars + hover tooltip).
+const posts: Post[] = entries.map((entry) => ({
+  slug: entry.id,
+  title: entry.data.title,
+  date: entry.data.date,
+  category: entry.data.category,
+  tags: entry.data.tags,
+  summary: entry.data.summary,
+}));
+
+// Server-render each Markdown body once; the reading panel reads the matching
+// node's HTML by slug when a star is opened.
+const bodies = await Promise.all(
+  entries.map(async (entry) => ({
+    slug: entry.id,
+    Content: (await render(entry)).Content,
+  })),
+);
 ---
 
 <html lang="zh-Hant">
@@ -8,10 +34,17 @@ import BlackHole from "../components/BlackHole.vue";
 		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<meta name="generator" content={Astro.generator} />
-		<title>黑洞視覺化</title>
+		<title>James Universe</title>
 	</head>
 	<body>
-		<BlackHole client:only="vue" />
+		<BlackHole client:only="vue" posts={posts} />
+
+		{/* Hidden, server-rendered Markdown bodies, pulled into the panel by slug. */}
+		<div class="post-bodies" aria-hidden="true">
+			{bodies.map(({ slug, Content }) => (
+				<article id={`post-body-${slug}`}><Content /></article>
+			))}
+		</div>
 	</body>
 </html>
 
@@ -22,5 +55,9 @@ import BlackHole from "../components/BlackHole.vue";
 		padding: 0;
 		background: #000;
 		overflow: hidden;
+	}
+
+	.post-bodies {
+		display: none;
 	}
 </style>

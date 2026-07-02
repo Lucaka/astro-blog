@@ -49,10 +49,10 @@ export function createContentStars(posts: Post[]): ContentStars {
         transparent: true,
         blending: THREE.AdditiveBlending,
         depthWrite: false,
-        opacity: 0.5,
+        opacity: 0.35,
       }),
     );
-    glow.scale.setScalar(2.2);
+    glow.scale.setScalar(1.6);
     mesh.add(glow);
 
     mesh.userData.post = post;
@@ -104,8 +104,8 @@ export function createContentStars(posts: Post[]): ContentStars {
       star.hover += (target - star.hover) * Math.min(1, dt * 8);
       const s = 1 + star.hover * 0.09;
       star.mesh.scale.setScalar(s);
-      star.glow.material.opacity = 0.5 + star.hover * 0.7;
-      star.glow.scale.setScalar(2.2 + star.hover * 1.0);
+      star.glow.material.opacity = 0.35 + star.hover * 0.45;
+      star.glow.scale.setScalar(1.6 + star.hover * 0.7);
     }
   }
 
