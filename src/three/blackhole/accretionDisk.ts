@@ -2,11 +2,13 @@ import * as THREE from "three";
 import { createGlowSpriteTexture } from "./particleTexture";
 import { createPointSpriteMaterial } from "./pointSpriteMaterial";
 
+// Palette pulled toward the spec's deep blue/violet: hot blue-white core
+// cooling through periwinkle to a deep indigo rim (was warm orange -> red).
 const COLOR_STOPS: Array<{ t: number; color: THREE.Color }> = [
   { t: 0, color: new THREE.Color(0xcfe8ff) }, // innermost: blue-white, hottest
   { t: 0.25, color: new THREE.Color(0xffffff) },
-  { t: 0.55, color: new THREE.Color(0xffa64d) },
-  { t: 1, color: new THREE.Color(0x661a0d) }, // outer edge: cool deep red
+  { t: 0.55, color: new THREE.Color(0x8fa3ff) },
+  { t: 1, color: new THREE.Color(0x2b1660) }, // outer edge: deep violet
 ];
 
 function colorForT(t: number, out: THREE.Color): THREE.Color {
@@ -24,7 +26,7 @@ function colorForT(t: number, out: THREE.Color): THREE.Color {
 
 export interface AccretionDisk {
   points: THREE.Points;
-  update: (dt: number) => void;
+  update: (dt: number, camera?: THREE.Camera) => void;
 }
 
 /**
@@ -38,7 +40,7 @@ export function createAccretionDisk(options?: {
   innerRadius?: number;
   outerRadius?: number;
 }): AccretionDisk {
-  const count = options?.count ?? 10800;
+  const count = options?.count ?? 7000;
   const innerRadius = options?.innerRadius ?? 1.15;
   const outerRadius = options?.outerRadius ?? 9;
 
@@ -61,7 +63,7 @@ export function createAccretionDisk(options?: {
     speedVariance[i] = 0.75 + Math.random() * 0.5;
     verticalSeed[i] = THREE.MathUtils.randFloatSpread(2);
     sizes[i] = 0.06 + Math.random() * Math.random() * 0.26;
-    brightness[i] = 0.6 + Math.random() * 0.85;
+    brightness[i] = 0.42 + Math.random() * 0.5;
     noiseSeed[i] = Math.random() * Math.PI * 2;
   }
 
@@ -86,9 +88,31 @@ export function createAccretionDisk(options?: {
 
   let elapsed = 0;
 
-  function update(dt: number) {
+  // Relativistic Doppler beaming: the side of the disk rotating toward the
+  // viewer is boosted, the receding side dimmed. Strength governs how extreme
+  // the light/dark asymmetry is; it is applied as a per-particle multiplier
+  // driven by the dot product of the particle's orbital velocity with the
+  // line of sight.
+  const dopplerStrength = 0.75;
+  // Projected (XZ) unit direction from the disk center toward the camera,
+  // refreshed once per frame — far cheaper than a per-particle recompute and
+  // accurate enough since the disk is small relative to the camera distance.
+  let camDirX = 0;
+  let camDirZ = 1;
+
+  function update(dt: number, camera?: THREE.Camera) {
     const span = outerRadius - innerRadius;
     elapsed += dt;
+
+    if (camera) {
+      const cx = camera.position.x;
+      const cz = camera.position.z;
+      const len = Math.hypot(cx, cz);
+      if (len > 1e-4) {
+        camDirX = cx / len;
+        camDirZ = cz / len;
+      }
+    }
 
     for (let i = 0; i < count; i++) {
       // Faster infall and faster (Keplerian-like) rotation the closer a
@@ -128,7 +152,22 @@ export function createAccretionDisk(options?: {
 
       const t = (rNow - innerRadius) / span;
       colorForT(t, tmpColor);
-      tmpColor.multiplyScalar(brightness[i]);
+
+      // Orbital velocity direction (XZ) is tangent to the circle: for a
+      // position of (cos a, sin a) moving with increasing angle it points
+      // along (-sin a, cos a). Beaming brightens particles whose motion has
+      // a component toward the camera and dims the receding side. Inner
+      // (faster) orbits are boosted more, mimicking the velocity dependence
+      // of relativistic beaming.
+      const velDot = -Math.sin(a) * camDirX + Math.cos(a) * camDirZ;
+      const speedFactor = Math.min(1.4, outerRadius / rNow);
+      const beaming = THREE.MathUtils.clamp(
+        1 + dopplerStrength * speedFactor * velDot,
+        0.15,
+        1.75,
+      );
+
+      tmpColor.multiplyScalar(brightness[i] * beaming);
       colorAttr.setXYZ(i, tmpColor.r, tmpColor.g, tmpColor.b);
     }
 

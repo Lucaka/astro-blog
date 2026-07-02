@@ -8,6 +8,12 @@ import type { IUniform } from "three";
  * gentler power would give). The sample point is pushed off-screen only
  * within that ring, which is what paints the shadow black without any
  * hard-edged cutout.
+ *
+ * A bright photon ring is composited on top, a razor-thin Gaussian glow
+ * pinned to the same shadow radius so it always hugs the shadow edge no
+ * matter how the camera orbits. Because this pass runs before the bloom
+ * pass, the ring blooms into the signature halo of light seen around a real
+ * black hole (EHT M87*, Interstellar's Gargantua).
  */
 export const LensingShader: {
   uniforms: Record<string, IUniform>;
@@ -18,6 +24,12 @@ export const LensingShader: {
     tDiffuse: { value: null },
     uAspect: { value: 1 },
     uCoreStrength: { value: 4.62e-12 },
+    // Aspect-corrected screen radius where the lensing shadow terminates;
+    // the photon ring is centered here so the two stay locked together.
+    uShadowRadius: { value: 0.052 },
+    uRingWidth: { value: 0.007 },
+    uRingIntensity: { value: 1.1 },
+    uRingColor: { value: [1.0, 0.86, 0.62] },
   },
   vertexShader: /* glsl */ `
     varying vec2 vUv;
@@ -30,6 +42,10 @@ export const LensingShader: {
     uniform sampler2D tDiffuse;
     uniform float uAspect;
     uniform float uCoreStrength;
+    uniform float uShadowRadius;
+    uniform float uRingWidth;
+    uniform float uRingIntensity;
+    uniform vec3 uRingColor;
     varying vec2 vUv;
 
     void main() {
@@ -49,12 +65,23 @@ export const LensingShader: {
       sampleDelta.x /= uAspect;
       vec2 sampleUv = center + sampleDelta;
 
+      // Base scene color: black inside the shadow (sample pushed off-screen),
+      // otherwise the lensed scene behind.
+      vec3 color;
       if (sampleUv.x < 0.0 || sampleUv.x > 1.0 || sampleUv.y < 0.0 || sampleUv.y > 1.0) {
-        gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
-        return;
+        color = vec3(0.0);
+      } else {
+        color = texture2D(tDiffuse, sampleUv).rgb;
       }
 
-      gl_FragColor = texture2D(tDiffuse, sampleUv);
+      // Photon ring: thin Gaussian glow centered on the shadow radius. Added
+      // on top of the (possibly black) base so it stays visible even where it
+      // overlaps the shadow edge, and feeds the downstream bloom pass.
+      float d = r - uShadowRadius;
+      float ring = exp(-(d * d) / (2.0 * uRingWidth * uRingWidth));
+      color += uRingColor * ring * uRingIntensity;
+
+      gl_FragColor = vec4(color, 1.0);
     }
   `,
 };

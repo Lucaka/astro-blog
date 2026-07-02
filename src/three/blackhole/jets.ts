@@ -4,6 +4,9 @@ import { createPointSpriteMaterial } from "./pointSpriteMaterial";
 
 const BASE_COLOR = new THREE.Color(0xdff0ff);
 const TIP_COLOR = new THREE.Color(0x6f9fff);
+// Global dimmer for the jets so the bright axial column reads as a subtle
+// feature rather than a spotlight competing with foreground content.
+const JET_BRIGHTNESS = 0.55;
 
 export interface Jets {
   points: THREE.Points;
@@ -22,7 +25,7 @@ export function createJets(options?: {
   baseRadius?: number;
   startHeight?: number;
 }): Jets {
-  const countPerJet = options?.countPerJet ?? 2000;
+  const countPerJet = options?.countPerJet ?? 1200;
   const length = options?.length ?? 22;
   const baseRadius = options?.baseRadius ?? 0.15;
   const startHeight = options?.startHeight ?? 1.15;
@@ -95,7 +98,7 @@ export function createJets(options?: {
       const r = coneRadius * spreadSeed[i] + lateralWobble;
       const a = angle[i] + angularWobble;
 
-      tmpColor.copy(BASE_COLOR).lerp(TIP_COLOR, p);
+      tmpColor.copy(BASE_COLOR).lerp(TIP_COLOR, p).multiplyScalar(JET_BRIGHTNESS);
 
       positionAttr.setXYZ(i, r * Math.cos(a), sign[i] * y, r * Math.sin(a));
       colorAttr.setXYZ(i, tmpColor.r, tmpColor.g, tmpColor.b);

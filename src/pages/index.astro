@@ -1,17 +1,109 @@
 ---
+import { getCollection, render } from "astro:content";
 import BlackHole from "../components/BlackHole.vue";
+import type { Post } from "../data/posts";
+import { readingTimeMinutes, postPath } from "../utils/posts";
+
+// Load every star from the Markdown content collection, newest first.
+const entries = (await getCollection("posts")).sort((a, b) =>
+  b.data.date.localeCompare(a.data.date),
+);
+
+// Metadata handed to the 3D island (stars + hover tooltip + search).
+const posts: Post[] = entries.map((entry) => ({
+  slug: entry.id,
+  title: entry.data.title,
+  date: entry.data.date,
+  category: entry.data.category,
+  tags: entry.data.tags,
+  summary: entry.data.summary,
+  minutes: readingTimeMinutes(entry.body ?? ""),
+}));
+
+// Server-render each Markdown body once; the reading panel reads the matching
+// node's HTML by slug when a star is opened.
+const bodies = await Promise.all(
+  entries.map(async (entry) => ({
+    slug: entry.id,
+    Content: (await render(entry)).Content,
+  })),
+);
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const description =
+  "James Universe — 在 3D 宇宙裡探索的部落格:前端、圖學與隨筆。每顆星星都是一篇文章。";
 ---
 
 <html lang="zh-Hant">
 	<head>
 		<meta charset="utf-8" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+		<link rel="icon" type="image/svg+xml" href={`${base}/favicon.svg`} />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<meta name="generator" content={Astro.generator} />
-		<title>黑洞視覺化</title>
+		<title>James Universe</title>
+		<meta name="description" content={description} />
+		<link rel="canonical" href={new URL(`${base}/`, Astro.site)} />
+		<link
+			rel="alternate"
+			type="application/rss+xml"
+			title="James Universe"
+			href={`${base}/rss.xml`}
+		/>
+		<meta property="og:type" content="website" />
+		<meta property="og:title" content="James Universe" />
+		<meta property="og:description" content={description} />
+		<meta property="og:url" content={new URL(`${base}/`, Astro.site)} />
 	</head>
 	<body>
-		<BlackHole client:only="vue" />
+		{/* Real links to every post: keyboard/screen-reader users can Tab through
+		    them (visible on focus), search engines can crawl them, and with JS
+		    off the <noscript> style below turns this into the whole page. */}
+		<nav class="post-index" aria-label="所有文章">
+			<h1 class="post-index__title">James Universe</h1>
+			<ul>
+				{posts.map((post) => (
+					<li>
+						<a href={postPath(post.slug)}>
+							<strong>{post.title}</strong>
+							<span class="post-index__meta">{post.date} · {post.summary}</span>
+						</a>
+					</li>
+				))}
+			</ul>
+		</nav>
+
+		<noscript>
+			<style>
+				/* Without JS the universe can't render: promote the link list to a
+				   normal, visible page instead of a black screen. */
+				.post-index {
+					position: fixed !important;
+					inset: 0 !important;
+					overflow: auto !important;
+					pointer-events: auto !important;
+					padding: 48px clamp(20px, 6vw, 64px) !important;
+				}
+				.post-index__title,
+				.post-index a {
+					position: static !important;
+					width: auto !important;
+					height: auto !important;
+					clip-path: none !important;
+				}
+				.post-index li {
+					margin: 14px 0 !important;
+				}
+			</style>
+		</noscript>
+
+		<BlackHole client:only="vue" posts={posts} />
+
+		{/* Hidden, server-rendered Markdown bodies, pulled into the panel by slug. */}
+		<div class="post-bodies" aria-hidden="true">
+			{bodies.map(({ slug, Content }) => (
+				<article id={`post-body-${slug}`}><Content /></article>
+			))}
+		</div>
 	</body>
 </html>
 
@@ -22,5 +114,70 @@ import BlackHole from "../components/BlackHole.vue";
 		padding: 0;
 		background: #000;
 		overflow: hidden;
+	}
+
+	.post-bodies {
+		display: none;
+	}
+
+	/* Visually hidden but focusable: each link pops into view when Tabbed to.
+	   The container itself must NOT be clipped — a clip-path on the ancestor
+	   would also clip the revealed, fixed-position focused link. */
+	.post-index {
+		position: fixed;
+		top: 0;
+		left: 0;
+		z-index: 40;
+		pointer-events: none;
+		color: #eef2ff;
+		font-family:
+			ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+	}
+	.post-index ul {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+	}
+	.post-index__title {
+		position: fixed;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+		margin: 0;
+	}
+	.post-index a {
+		position: fixed;
+		top: 12px;
+		left: 12px;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+		color: #eef2ff;
+		text-decoration: none;
+		pointer-events: auto;
+	}
+	.post-index a:focus {
+		width: auto;
+		height: auto;
+		clip-path: none;
+		z-index: 41;
+		display: block;
+		max-width: min(480px, 90vw);
+		padding: 12px 16px;
+		border-radius: 12px;
+		background: rgba(12, 16, 28, 0.92);
+		border: 1px solid rgba(255, 255, 255, 0.2);
+		outline: 2px solid #8ab4ff;
+	}
+	.post-index__meta {
+		display: block;
+		font-size: 13px;
+		opacity: 0.7;
+		margin-top: 4px;
+	}
+	.post-index__title {
+		font-size: 24px;
 	}
 </style>
