@@ -9,6 +9,7 @@ import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPa
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 
 import { createStarfield } from "../three/blackhole/starfield";
+import { createNebula } from "../three/blackhole/nebula";
 import { createGravityGrid } from "../three/blackhole/gravityGrid";
 import { createAccretionDisk } from "../three/blackhole/accretionDisk";
 import { createOrbitingBodies } from "../three/blackhole/orbitingBodies";
@@ -53,6 +54,7 @@ onMounted(() => {
   controls.minPolarAngle = THREE.MathUtils.degToRad(15);
   controls.maxPolarAngle = THREE.MathUtils.degToRad(85);
   const starfield = createStarfield();
+  const nebula = createNebula();
   const gravityGrid = createGravityGrid();
   const accretionDisk = createAccretionDisk();
   const orbitingBodies = createOrbitingBodies();
@@ -63,6 +65,7 @@ onMounted(() => {
 
   scene.add(
     starfield,
+    nebula,
     gravityGrid,
     accretionDisk.points,
     orbitingBodies.group,
@@ -106,7 +109,7 @@ onMounted(() => {
   function animate() {
     frameId = requestAnimationFrame(animate);
     const dt = Math.min(clock.getDelta(), 0.1);
-    accretionDisk.update(dt);
+    accretionDisk.update(dt, camera);
     orbitingBodies.update(dt);
     jets.update(dt);
     dysonSphere.update(dt);
