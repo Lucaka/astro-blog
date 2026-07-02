@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "astro-preview",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["./node_modules/astro/bin/astro.mjs", "preview", "--port", "4399"],
+      "port": 4399,
+      "autoPort": false
+    }
+  ]
+}
