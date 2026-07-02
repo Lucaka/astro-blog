@@ -469,6 +469,18 @@ onMounted(() => {
     }
 
     controls.update();
+
+    // Feed the lensing pass how edge-on the disk is: 0 looking straight down
+    // at it, 1 with the camera in its plane. Drives the fold-over arcs
+    // (top/bottom) and disk lobes (left/right) in and the isotropic photon
+    // ring out as the camera descends toward the disk.
+    const edgeOn = 1 - Math.abs(camera.position.y) / camera.position.length();
+    lensingPass.uniforms.uEdgeOn.value = THREE.MathUtils.smoothstep(
+      edgeOn,
+      0.15,
+      0.75,
+    );
+
     composer.render();
   }
 
