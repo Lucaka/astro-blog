@@ -40,7 +40,10 @@ onMounted(() => {
   renderer.setSize(el.clientWidth, el.clientHeight);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.15;
+  // Calm baseline: exposure pulled below 1 so the scene reads as a quiet,
+  // deep-space backdrop that content can sit on top of, rather than a bright
+  // showpiece competing with the article for attention.
+  renderer.toneMappingExposure = 0.78;
   el.appendChild(renderer.domElement);
 
   const controls = new OrbitControls(camera, renderer.domElement);
@@ -82,11 +85,13 @@ onMounted(() => {
   lensingPass.uniforms.uAspect.value = el.clientWidth / el.clientHeight;
   composer.addPass(lensingPass);
 
+  // Softer bloom with a higher threshold: only the brightest cores (photon
+  // ring, star centers) glow, instead of the whole field smearing into haze.
   const bloomPass = new UnrealBloomPass(
     new THREE.Vector2(el.clientWidth, el.clientHeight),
-    1.15,
     0.6,
-    0.15,
+    0.6,
+    0.3,
   );
   composer.addPass(bloomPass);
   composer.addPass(new OutputPass());

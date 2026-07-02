@@ -38,7 +38,7 @@ export function createAccretionDisk(options?: {
   innerRadius?: number;
   outerRadius?: number;
 }): AccretionDisk {
-  const count = options?.count ?? 10800;
+  const count = options?.count ?? 7000;
   const innerRadius = options?.innerRadius ?? 1.15;
   const outerRadius = options?.outerRadius ?? 9;
 
@@ -61,7 +61,7 @@ export function createAccretionDisk(options?: {
     speedVariance[i] = 0.75 + Math.random() * 0.5;
     verticalSeed[i] = THREE.MathUtils.randFloatSpread(2);
     sizes[i] = 0.06 + Math.random() * Math.random() * 0.26;
-    brightness[i] = 0.6 + Math.random() * 0.85;
+    brightness[i] = 0.42 + Math.random() * 0.5;
     noiseSeed[i] = Math.random() * Math.PI * 2;
   }
 
@@ -91,7 +91,7 @@ export function createAccretionDisk(options?: {
   // the light/dark asymmetry is; it is applied as a per-particle multiplier
   // driven by the dot product of the particle's orbital velocity with the
   // line of sight.
-  const dopplerStrength = 0.85;
+  const dopplerStrength = 0.75;
   // Projected (XZ) unit direction from the disk center toward the camera,
   // refreshed once per frame — far cheaper than a per-particle recompute and
   // accurate enough since the disk is small relative to the camera distance.
@@ -162,7 +162,7 @@ export function createAccretionDisk(options?: {
       const beaming = THREE.MathUtils.clamp(
         1 + dopplerStrength * speedFactor * velDot,
         0.15,
-        2.2,
+        1.75,
       );
 
       tmpColor.multiplyScalar(brightness[i] * beaming);

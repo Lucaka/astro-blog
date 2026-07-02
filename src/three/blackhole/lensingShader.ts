@@ -28,7 +28,7 @@ export const LensingShader: {
     // the photon ring is centered here so the two stay locked together.
     uShadowRadius: { value: 0.052 },
     uRingWidth: { value: 0.007 },
-    uRingIntensity: { value: 1.9 },
+    uRingIntensity: { value: 1.1 },
     uRingColor: { value: [1.0, 0.86, 0.62] },
   },
   vertexShader: /* glsl */ `
