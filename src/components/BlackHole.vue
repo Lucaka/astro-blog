@@ -96,6 +96,33 @@ onMounted(() => {
   composer.addPass(bloomPass);
   composer.addPass(new OutputPass());
 
+  // --- Reading mode -------------------------------------------------------
+  // When an article opens, the scene eases into a dimmer, slower, more
+  // transparent state so the backdrop stops competing with the content, then
+  // eases back on close. Any content/modal code toggles it without coupling
+  // to this component:
+  //   window.dispatchEvent(new CustomEvent("blackhole:reading", { detail: true }))
+  //   window.dispatchEvent(new CustomEvent("blackhole:reading", { detail: false }))
+  const EXPLORE_STATE = { exposure: 0.78, bloom: 0.6, opacity: 1, speed: 1 };
+  const READING_STATE = { exposure: 0.34, bloom: 0.3, opacity: 0.4, speed: 0.35 };
+
+  // Every particle material that exposes uOpacity, gathered once so the frame
+  // loop can fade the whole field together.
+  const spriteMaterials: THREE.ShaderMaterial[] = [];
+  scene.traverse((obj) => {
+    const material = (obj as THREE.Points).material;
+    if (material instanceof THREE.ShaderMaterial && material.uniforms.uOpacity) {
+      spriteMaterials.push(material);
+    }
+  });
+
+  let readingTarget = 0; // 0 = explore, 1 = reading
+  let readingMix = 0; // eased value that actually drives the scene
+  function handleReading(event: Event) {
+    readingTarget = (event as CustomEvent<boolean>).detail ? 1 : 0;
+  }
+  window.addEventListener("blackhole:reading", handleReading as EventListener);
+
   function handleResize() {
     const width = el!.clientWidth;
     const height = el!.clientHeight;
@@ -114,10 +141,37 @@ onMounted(() => {
   function animate() {
     frameId = requestAnimationFrame(animate);
     const dt = Math.min(clock.getDelta(), 0.1);
-    accretionDisk.update(dt, camera);
-    orbitingBodies.update(dt);
-    jets.update(dt);
-    dysonSphere.update(dt);
+
+    // Ease toward the current reading target (~0.3s response), then drive the
+    // scene's brightness, bloom, particle opacity and animation speed from it.
+    readingMix += (readingTarget - readingMix) * Math.min(1, dt * 3.5);
+    const mix = readingMix;
+    renderer.toneMappingExposure = THREE.MathUtils.lerp(
+      EXPLORE_STATE.exposure,
+      READING_STATE.exposure,
+      mix,
+    );
+    bloomPass.strength = THREE.MathUtils.lerp(
+      EXPLORE_STATE.bloom,
+      READING_STATE.bloom,
+      mix,
+    );
+    const opacity = THREE.MathUtils.lerp(
+      EXPLORE_STATE.opacity,
+      READING_STATE.opacity,
+      mix,
+    );
+    for (const material of spriteMaterials) {
+      material.uniforms.uOpacity.value = opacity;
+    }
+    // Slow the motion in reading mode; controls keep real time for input feel.
+    const simDt =
+      dt * THREE.MathUtils.lerp(EXPLORE_STATE.speed, READING_STATE.speed, mix);
+
+    accretionDisk.update(simDt, camera);
+    orbitingBodies.update(simDt);
+    jets.update(simDt);
+    dysonSphere.update(simDt);
     controls.update();
     composer.render();
   }
@@ -126,6 +180,7 @@ onMounted(() => {
   onBeforeUnmount(() => {
     cancelAnimationFrame(frameId);
     window.removeEventListener("resize", handleResize);
+    window.removeEventListener("blackhole:reading", handleReading as EventListener);
     controls.dispose();
     composer.dispose();
     renderer.dispose();

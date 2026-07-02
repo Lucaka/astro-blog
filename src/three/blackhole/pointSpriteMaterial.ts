@@ -12,6 +12,9 @@ export function createPointSpriteMaterial(
     uniforms: {
       uMap: { value: map },
       uPixelRatio: { value: typeof window !== "undefined" ? window.devicePixelRatio : 1 },
+      // Global opacity multiplier, driven down during reading mode so the
+      // whole particle field fades back and lets foreground content dominate.
+      uOpacity: { value: 1 },
     },
     vertexShader: /* glsl */ `
       attribute float size;
@@ -26,10 +29,11 @@ export function createPointSpriteMaterial(
     `,
     fragmentShader: /* glsl */ `
       uniform sampler2D uMap;
+      uniform float uOpacity;
       varying vec3 vColor;
       void main() {
         vec4 tex = texture2D(uMap, gl_PointCoord);
-        gl_FragColor = vec4(vColor * tex.rgb, tex.a);
+        gl_FragColor = vec4(vColor * tex.rgb * uOpacity, tex.a * uOpacity);
         if (gl_FragColor.a < 0.02) discard;
       }
     `,
