@@ -1,6 +1,6 @@
 ---
 import { getCollection } from "astro:content";
-import { postPath } from "../utils/posts";
+import { byDateDesc, postPath } from "../utils/posts";
 
 /**
  * Themed 404: GitHub Pages serves the built `404.html` for any unknown URL
@@ -8,9 +8,7 @@ import { postPath } from "../utils/posts";
  * default GitHub error page. Lists every post so lost readers have somewhere
  * to go.
  */
-const entries = (await getCollection("posts")).sort((a, b) =>
-  b.data.date.localeCompare(a.data.date),
-);
+const entries = (await getCollection("posts")).sort(byDateDesc);
 
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 ---

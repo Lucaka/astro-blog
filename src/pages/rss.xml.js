@@ -1,10 +1,10 @@
 import rss from "@astrojs/rss";
 import { getCollection } from "astro:content";
-import { parseDisplayDate, postPath } from "../utils/posts";
+import { byDateDesc, parseDisplayDate, postPath } from "../utils/posts";
 
 export async function GET(context) {
   const entries = await getCollection("posts");
-  entries.sort((a, b) => b.data.date.localeCompare(a.data.date));
+  entries.sort(byDateDesc);
 
   return rss({
     title: "James Universe",

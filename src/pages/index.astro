@@ -2,12 +2,10 @@
 import { getCollection, render } from "astro:content";
 import BlackHole from "../components/BlackHole.vue";
 import type { Post } from "../data/posts";
-import { parseDisplayDate, readingTimeMinutes, postPath } from "../utils/posts";
+import { byDateDesc, parseDisplayDate, readingTimeMinutes, postPath } from "../utils/posts";
 
 // Load every star from the Markdown content collection, newest first.
-const entries = (await getCollection("posts")).sort((a, b) =>
-  b.data.date.localeCompare(a.data.date),
-);
+const entries = (await getCollection("posts")).sort(byDateDesc);
 
 // Metadata handed to the 3D island (stars + hover tooltip + search).
 const posts: Post[] = entries.map((entry) => ({
@@ -49,7 +47,9 @@ const jsonLd = JSON.stringify({
     datePublished: parseDisplayDate(post.date).toISOString().slice(0, 10),
     url: new URL(postPath(post.slug), Astro.site),
   })),
-});
+  // JSON.stringify leaves "</" intact, so a title/summary containing
+  // "</script>" could break out of the inline script tag; escape "<".
+}).replace(/</g, "\\u003c");
 ---
 
 <html lang="zh-Hant">

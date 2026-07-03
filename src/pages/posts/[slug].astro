@@ -1,7 +1,7 @@
 ---
 import { getCollection, render } from "astro:content";
 import { CATEGORY_META } from "../../data/posts";
-import { parseDisplayDate, readingTimeMinutes, postPath } from "../../utils/posts";
+import { byDateDesc, parseDisplayDate, readingTimeMinutes, postPath } from "../../utils/posts";
 
 /**
  * Real, statically generated page for every post: shareable, indexable,
@@ -11,9 +11,7 @@ import { parseDisplayDate, readingTimeMinutes, postPath } from "../../utils/post
 export async function getStaticPaths() {
   // Newest first, same order as the index — so "newer/older" nav matches
   // what readers see in the universe.
-  const entries = (await getCollection("posts")).sort((a, b) =>
-    b.data.date.localeCompare(a.data.date),
-  );
+  const entries = (await getCollection("posts")).sort(byDateDesc);
   return entries.map((entry, i) => ({
     params: { slug: entry.id },
     props: { entry, newer: entries[i - 1] ?? null, older: entries[i + 1] ?? null },
@@ -46,7 +44,9 @@ const jsonLd = JSON.stringify({
   image: ogImage,
   mainEntityOfPage: canonical,
   url: canonical,
-});
+  // JSON.stringify leaves "</" intact, so a title/summary containing
+  // "</script>" could break out of the inline script tag; escape "<".
+}).replace(/</g, "\\u003c");
 ---
 
 <html lang="zh-Hant">
