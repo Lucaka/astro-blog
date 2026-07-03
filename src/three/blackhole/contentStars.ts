@@ -35,6 +35,8 @@ export interface ContentStars {
   findBySlug: (slug: string) => ContentStar | null;
   /** `motion` scales orbital movement only (reading mode / reduced motion). */
   update: (dt: number, motion: number) => void;
+  /** Free GPU resources; call when swapping to another galaxy's stars. */
+  dispose: () => void;
 }
 
 export function createContentStars(posts: Post[]): ContentStars {
@@ -97,6 +99,7 @@ export function createContentStars(posts: Post[]): ContentStars {
     setFilter,
     findBySlug: (slug) => stars.find((s) => s.post.slug === slug) ?? null,
     update,
+    dispose,
   };
 
   function setFilter(categories: Set<PostCategory> | null) {
@@ -144,6 +147,15 @@ export function createContentStars(posts: Post[]): ContentStars {
       star.glow.material.opacity = (0.35 + star.hover * 0.45) * visibility;
       star.glow.scale.setScalar(1.6 + star.hover * 0.7);
     }
+  }
+
+  function dispose() {
+    for (const star of stars) {
+      star.mesh.geometry.dispose();
+      (star.mesh.material as THREE.Material).dispose();
+      star.glow.material.dispose();
+    }
+    glowTexture.dispose();
   }
 
   return api;
