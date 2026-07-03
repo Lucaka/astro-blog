@@ -118,6 +118,22 @@ const searchResults = computed(() => {
     .slice(0, 8);
 });
 
+// Sidebar article list: a plain, blog-style index of every post. Open/closed
+// state is remembered across visits; hovering an entry highlights its star.
+const showList = ref(false);
+const LIST_KEY = "universe-list-open";
+const listVisible = computed(
+  () => showList.value && !selectedPost.value && viewMode.value === "galaxy",
+);
+function toggleList() {
+  showList.value = !showList.value;
+  try {
+    localStorage.setItem(LIST_KEY, showList.value ? "1" : "0");
+  } catch {
+    /* private mode: the list just won't remember */
+  }
+}
+
 // First-visit hint, shown once then remembered in localStorage.
 const showHint = ref(false);
 const HINT_KEY = "universe-hint-seen";
@@ -126,6 +142,22 @@ const HINT_KEY = "universe-hint-seen";
 let flyToStar: (slug: string) => void = () => {};
 let applyFilter: (categories: Set<PostCategory>) => void = () => {};
 let requestGroupView: () => void = () => {};
+let highlightStar: (slug: string | null) => void = () => {};
+
+// Sidebar hover/focus -> glow up the matching star in the scene. Stars from
+// other galaxies simply aren't found, so the highlight is a no-op for them.
+function hoverListPost(slug: string | null) {
+  highlightStar(slug);
+}
+function openFromList(post: Post) {
+  highlightStar(null);
+  openPost(post);
+}
+// The panel can disappear out from under the cursor (opening a post, leaving
+// the galaxy view), so mouseleave alone can't be trusted to clean up.
+watch(listVisible, (visible) => {
+  if (!visible) highlightStar(null);
+});
 
 // Breadcrumb "星系群" crumb: zoom out to the group view.
 function openGroupView() {
@@ -242,6 +274,13 @@ onMounted(() => {
 
   window.addEventListener("popstate", handlePopstate);
 
+  // Restore the sidebar's remembered open/closed state.
+  try {
+    showList.value = localStorage.getItem(LIST_KEY) === "1";
+  } catch {
+    /* private mode: default to closed */
+  }
+
   // First-visit hint: fade in once, dismissed by time or first interaction.
   let hintTimer = 0;
   try {
@@ -337,6 +376,12 @@ onMounted(() => {
   applyFilter = (categories) =>
     contentStars.setFilter(categories.size > 0 ? categories : null);
 
+  // Sidebar hover: mark the star so the frame loop swells its glow and slows
+  // its orbit, exactly like a direct in-scene hover.
+  highlightStar = (slug) => {
+    contentStars.highlighted = slug ? contentStars.findBySlug(slug) : null;
+  };
+
   // Swap the interactive stars over to another volume's posts. The rest of
   // the black-hole scene is galaxy-agnostic, so only the stars are rebuilt.
   function activateGalaxy(galaxy: Galaxy) {
@@ -344,6 +389,7 @@ onMounted(() => {
     flight = null;
     contentStars.focused = null;
     contentStars.hovered = null;
+    contentStars.highlighted = null;
     galaxyScene.remove(contentStars.group);
     contentStars.dispose();
     contentStars = createContentStars(galaxy.posts);
@@ -949,6 +995,58 @@ onMounted(() => {
       </template>
     </nav>
 
+    <!-- Article list sidebar: a normal blog-style index for quick browsing.
+         Hovering an entry highlights its star; clicking opens the post. -->
+    <button
+      type="button"
+      class="list-toggle"
+      :class="{
+        'list-toggle--hidden': selectedPost || viewMode !== 'galaxy',
+      }"
+      :aria-expanded="showList"
+      aria-controls="post-list-panel"
+      @click="toggleList"
+    >
+      <span aria-hidden="true">☰</span> 文章清單
+    </button>
+    <Transition name="list-slide">
+      <aside
+        v-if="listVisible"
+        id="post-list-panel"
+        class="post-list"
+        aria-label="文章清單"
+      >
+        <p class="post-list__count">共 {{ allPosts.length }} 篇</p>
+        <ul class="post-list__items">
+          <li v-for="post in allPosts" :key="post.slug">
+            <button
+              type="button"
+              class="post-list__item"
+              @mouseenter="hoverListPost(post.slug)"
+              @mouseleave="hoverListPost(null)"
+              @focus="hoverListPost(post.slug)"
+              @blur="hoverListPost(null)"
+              @click="openFromList(post)"
+            >
+              <span
+                class="post-list__dot"
+                :style="{ background: catColor(post.category) }"
+              ></span>
+              <span class="post-list__text">
+                <span class="post-list__title">{{ post.title }}</span>
+                <span class="post-list__meta">
+                  {{ post.date
+                  }}<template v-if="post.minutes">
+                    · 約 {{ post.minutes }} 分鐘</template
+                  >
+                </span>
+              </span>
+            </button>
+          </li>
+        </ul>
+      </aside>
+    </Transition>
+
     <!-- Search Galaxy: keyword -> fly the camera to the matching star. -->
     <div class="search" :class="{ 'search--hidden': selectedPost }">
       <input
@@ -1076,6 +1174,9 @@ onMounted(() => {
             <li><strong>拖曳</strong>旋轉視角，<strong>滾輪 / 雙指</strong>縮放</li>
             <li><strong>點擊星星</strong>閱讀文章，游標懸停可預覽</li>
             <li><strong>右上搜尋</strong>找文章，<strong>左下圖例</strong>篩選分類</li>
+            <li>
+              左上<strong>文章清單</strong>以列表瀏覽全部文章，懸停即可點亮對應的星星
+            </li>
             <li v-if="galaxies.length > 1">
               <strong>縮小到底後繼續滾動</strong>離開星系、綜覽星系群；點擊星系或滾輪放大即可返回
             </li>
@@ -1255,6 +1356,136 @@ onMounted(() => {
   .breadcrumb {
     top: auto;
     bottom: clamp(58px, 14vw, 76px);
+  }
+}
+
+/* --- Article list sidebar -------------------------------------------------- */
+.list-toggle {
+  position: fixed;
+  top: calc(clamp(14px, 3vw, 24px) + 42px);
+  left: clamp(16px, 3vw, 32px);
+  z-index: 20;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 12px;
+  border-radius: 12px;
+  background: rgba(12, 16, 28, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  color: #d7def5;
+  font-size: 12px;
+  cursor: pointer;
+  transition:
+    opacity 0.35s ease,
+    transform 0.35s ease,
+    background 0.15s ease;
+}
+.list-toggle:hover,
+.list-toggle:focus-visible {
+  background: rgba(255, 255, 255, 0.1);
+}
+.list-toggle--hidden {
+  opacity: 0;
+  transform: translateY(-8px);
+  pointer-events: none;
+}
+.post-list {
+  position: fixed;
+  top: calc(clamp(14px, 3vw, 24px) + 84px);
+  left: clamp(16px, 3vw, 32px);
+  bottom: clamp(64px, 10vh, 96px);
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  width: min(290px, calc(100vw - 32px));
+  border-radius: 16px;
+  background: rgba(12, 16, 28, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: #eef2ff;
+  overflow: hidden;
+}
+.post-list__count {
+  flex: none;
+  margin: 0;
+  padding: 12px 16px 8px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: #aab4d4;
+}
+.post-list__items {
+  flex: 1;
+  margin: 0;
+  padding: 0 8px 8px;
+  list-style: none;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.post-list__item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  border: none;
+  border-radius: 10px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.post-list__item:hover,
+.post-list__item:focus-visible {
+  background: rgba(255, 255, 255, 0.08);
+}
+.post-list__dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin-top: 5px;
+  border-radius: 50%;
+}
+.post-list__text {
+  min-width: 0;
+}
+.post-list__title {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+.post-list__meta {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  opacity: 0.6;
+}
+.list-slide-enter-active,
+.list-slide-leave-active {
+  transition:
+    opacity 0.35s ease,
+    transform 0.35s ease;
+}
+.list-slide-enter-from,
+.list-slide-leave-to {
+  opacity: 0;
+  transform: translateX(-14px);
+}
+
+/* Mobile: the breadcrumb lives at the bottom, so the toggle takes the top-left
+   corner; the panel stops above the breadcrumb + legend stack. */
+@media (max-width: 640px) {
+  .list-toggle {
+    top: clamp(14px, 3vw, 24px);
+  }
+  .post-list {
+    top: calc(clamp(14px, 3vw, 24px) + 44px);
+    bottom: calc(clamp(58px, 14vw, 76px) + 46px);
   }
 }
 
@@ -1748,8 +1979,11 @@ onMounted(() => {
   .panel-fade-leave-active .reading-panel,
   .hint-fade-enter-active,
   .hint-fade-leave-active,
+  .list-slide-enter-active,
+  .list-slide-leave-active,
   .legend,
-  .search {
+  .search,
+  .list-toggle {
     transition-duration: 0.01s;
     transition-delay: 0s;
   }

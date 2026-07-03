@@ -30,6 +30,8 @@ export interface ContentStars {
   hovered: THREE.Mesh | null;
   /** Star singled out by search: pinned in place and highlighted like hover. */
   focused: ContentStar | null;
+  /** Star highlighted from the sidebar list: same visual as hover. */
+  highlighted: ContentStar | null;
   /** Show only these categories (null = show everything). */
   setFilter: (categories: Set<PostCategory> | null) => void;
   findBySlug: (slug: string) => ContentStar | null;
@@ -96,6 +98,7 @@ export function createContentStars(posts: Post[]): ContentStars {
     pickables: stars.map((s) => s.mesh),
     hovered: null,
     focused: null,
+    highlighted: null,
     setFilter,
     findBySlug: (slug) => stars.find((s) => s.post.slug === slug) ?? null,
     update,
@@ -110,12 +113,17 @@ export function createContentStars(posts: Post[]): ContentStars {
     if (api.focused && filter && !filter.has(api.focused.post.category)) {
       api.focused = null;
     }
+    if (api.highlighted && filter && !filter.has(api.highlighted.post.category)) {
+      api.highlighted = null;
+    }
   }
 
   function update(dt: number, motion: number) {
     for (const star of stars) {
       const highlighted =
-        api.hovered === star.mesh || api.focused === star;
+        api.hovered === star.mesh ||
+        api.focused === star ||
+        api.highlighted === star;
 
       // A moving target is hard to click: hovering (or search-focusing) a
       // star nearly stops its orbit so it can be selected calmly.
