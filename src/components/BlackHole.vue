@@ -71,6 +71,22 @@ const activeGalaxy = ref<Galaxy>(
 const viewMode = ref<"galaxy" | "group" | "toGroup" | "toGalaxy">("galaxy");
 const hoveredGalaxy = ref<Galaxy | null>(null);
 
+// Overscroll-to-exit gesture: reaching the zoom wall shows a pill; wheeling
+// further charges `exitProgress` toward 1 before the group view launches, so
+// simply zooming out for an overview can never accidentally leave the galaxy.
+const nearExitWall = ref(false);
+const exitProgress = ref(0);
+
+// "?" corner button -> controls guide panel.
+const showInfo = ref(false);
+const infoPanelEl = ref<HTMLElement | null>(null);
+watch(showInfo, async (open) => {
+  if (open) {
+    await nextTick();
+    infoPanelEl.value?.focus();
+  }
+});
+
 const container = ref<HTMLDivElement | null>(null);
 
 // --- UI state (bound by the template) ------------------------------------
@@ -394,18 +410,20 @@ onMounted(() => {
   });
 
   // --- Semantic zoom: galaxy <-> galaxy group ------------------------------
-  // Zooming out past TO_GROUP_AT leaves the galaxy; zooming in past
-  // TO_GALAXY_AT (or clicking an impostor) dives back in. Each switch is a
-  // short "hyperspace dip": exposure sinks to near-black at the midpoint,
-  // where the two worlds swap visibility — no cross-view LOD needed. The
-  // thresholds sit far from where the camera lands on the other side, which
-  // is the hysteresis that keeps the boundary from flickering.
+  // Leaving a galaxy is a deliberate gesture: the camera first hard-stops at
+  // its zoom wall (GALAXY_DIST.max), then wheeling further charges the exit
+  // before the group view launches. Zooming in past TO_GALAXY_AT (or clicking
+  // an impostor) dives back in. Each switch is a short "hyperspace dip":
+  // exposure sinks to near-black at the midpoint, where the two worlds swap
+  // visibility — no cross-view LOD needed. The camera always lands far from
+  // the opposite trigger, which is the hysteresis that keeps the boundary
+  // from flickering.
   const GALAXY_CAM = new THREE.Vector3(0, 5.5, 16);
   const GROUP_CAM = new THREE.Vector3(0, 20, 52);
   const GALAXY_DIST = { min: 4.5, max: 50 };
   const GROUP_DIST = { min: 16, max: 70 };
-  const TO_GROUP_AT = 46;
   const TO_GALAXY_AT = 20;
+  const EXIT_WALL = GALAXY_DIST.max - 2; // "at the wall" once past this
 
   const easeIn = (x: number) => x * x * x;
   const easeOut = (x: number) => 1 - Math.pow(1 - x, 3);
@@ -423,11 +441,24 @@ onMounted(() => {
   } | null = null;
   // Search hit living in another galaxy: focus it once the dive-in lands.
   let pendingFocusSlug: string | null = null;
+  // Overscroll accumulator behind the `exitProgress` ref (0 -> 1 launches).
+  let exitCharge = 0;
+  // Exiting takes TWO gestures: the scroll that hits the wall never counts —
+  // no matter how long it lasts — the wheel must first go quiet at the wall
+  // (arming the gesture), and only the next scroll charges the exit. This is
+  // what makes "zoom out for an overview" impossible to overshoot.
+  let exitArmed = false;
+  // Seconds since the last wheel-out event over the scene.
+  let wheelIdle = Infinity;
 
   function startToGroup() {
     if (viewMode.value !== "galaxy" || selectedPost.value) return;
     viewMode.value = "toGroup";
     controls.enabled = false;
+    exitCharge = 0;
+    exitProgress.value = 0;
+    exitArmed = false;
+    nearExitWall.value = false;
     // Hand the camera over from any in-progress search flight.
     flight = null;
     contentStars.focused = null;
@@ -565,9 +596,38 @@ onMounted(() => {
       if (hit) startToGalaxy(hit.object.userData.galaxy as Galaxy);
     }
   }
+  // Overscroll-to-exit: once the camera sits at the zoom wall, further
+  // wheel-out charges the exit gesture instead of instantly jumping views
+  // (~5 notches, or the trackpad equivalent, to launch). Touch users take
+  // the breadcrumb instead.
+  function handleExitWheel(event: WheelEvent) {
+    if (
+      viewMode.value !== "galaxy" ||
+      transition ||
+      selectedPost.value ||
+      galaxies.length < 2 ||
+      event.deltaY <= 0
+    ) {
+      return;
+    }
+    // Every wheel-out is "activity": it keeps the gesture from arming, so a
+    // single continuous scroll (or its momentum tail) can never launch.
+    wheelIdle = 0;
+    if (!exitArmed) return;
+    // Normalize line-mode deltas (Firefox) and cap flick spikes so one
+    // aggressive trackpad swipe can't launch on its own.
+    const delta = event.deltaMode === 1 ? event.deltaY * 33 : event.deltaY;
+    exitCharge = Math.min(1, exitCharge + Math.min(delta, 120) / 500);
+    exitProgress.value = exitCharge;
+    if (exitCharge >= 1) startToGroup();
+  }
+
   renderer.domElement.addEventListener("pointermove", handlePointerMove);
   renderer.domElement.addEventListener("pointerdown", handlePointerDown);
   renderer.domElement.addEventListener("pointerup", handlePointerUp);
+  renderer.domElement.addEventListener("wheel", handleExitWheel, {
+    passive: true,
+  });
 
   function handleResize() {
     const width = el!.clientWidth;
@@ -680,18 +740,35 @@ onMounted(() => {
         }
       }
     } else if (!selectedPost.value) {
-      // Wheel/pinch semantic zoom triggers. The camera always orbits the
-      // origin, so its length is the orbit distance.
+      // The camera always orbits the origin, so its length is the distance.
       const dist = camera.position.length();
-      if (
+      // Exit pill: armed while parked at the galaxy's zoom wall; the charge
+      // drains away as soon as the wheel goes quiet or the camera leaves.
+      const atWall =
         viewMode.value === "galaxy" &&
         galaxies.length > 1 &&
-        dist >= TO_GROUP_AT
-      ) {
-        startToGroup();
-      } else if (viewMode.value === "group" && dist <= TO_GALAXY_AT) {
+        dist >= EXIT_WALL;
+      if (nearExitWall.value !== atWall) nearExitWall.value = atWall;
+      wheelIdle += dt;
+      if (!atWall) {
+        exitArmed = false;
+        exitCharge = 0;
+      } else {
+        // Arm once the wheel has gone quiet while parked at the wall; the
+        // charge also drains during quiet stretches, so an armed-but-
+        // abandoned gesture resets itself.
+        if (!exitArmed && wheelIdle > 0.35) exitArmed = true;
+        if (exitCharge > 0 && wheelIdle > 0.4) {
+          exitCharge = Math.max(0, exitCharge - dt * 0.6);
+        }
+      }
+      if (exitProgress.value !== exitCharge) exitProgress.value = exitCharge;
+
+      if (viewMode.value === "group" && dist <= TO_GALAXY_AT) {
         startToGalaxy(activeGalaxy.value);
       }
+    } else if (nearExitWall.value) {
+      nearExitWall.value = false;
     }
 
     // Search flight: ease the camera toward the pinned star's viewpoint.
@@ -823,6 +900,7 @@ onMounted(() => {
     renderer.domElement.removeEventListener("pointermove", handlePointerMove);
     renderer.domElement.removeEventListener("pointerdown", handlePointerDown);
     renderer.domElement.removeEventListener("pointerup", handlePointerUp);
+    renderer.domElement.removeEventListener("wheel", handleExitWheel);
     controls.dispose();
     composer.dispose();
     renderer.dispose();
@@ -944,6 +1022,67 @@ onMounted(() => {
       <p v-if="viewMode === 'group'" class="hint" aria-hidden="true">
         點擊星系進入 · 滾輪放大返回
       </p>
+    </Transition>
+
+    <!-- Exit pill: parked at the zoom wall — keep scrolling to leave. -->
+    <Transition name="charge-fade">
+      <div v-if="nearExitWall" class="exit-charge" aria-hidden="true">
+        <span>繼續滾動 → 前往星系群</span>
+        <span class="exit-charge__bar">
+          <span
+            class="exit-charge__fill"
+            :style="{ width: exitProgress * 100 + '%' }"
+          ></span>
+        </span>
+      </div>
+    </Transition>
+
+    <!-- Corner "?": opens the controls guide. -->
+    <button
+      v-if="!selectedPost"
+      type="button"
+      class="info-button"
+      aria-label="操作指南"
+      @click="showInfo = true"
+    >
+      ?
+    </button>
+
+    <!-- Controls guide panel. -->
+    <Transition name="panel-fade">
+      <div
+        v-if="showInfo"
+        class="reading-scrim info-scrim"
+        @click.self="showInfo = false"
+        @keydown.escape.prevent="showInfo = false"
+      >
+        <section
+          ref="infoPanelEl"
+          class="reading-panel info-panel"
+          role="dialog"
+          aria-modal="true"
+          aria-label="操作指南"
+          tabindex="-1"
+        >
+          <button
+            class="reading-panel__close"
+            aria-label="關閉操作指南"
+            @click="showInfo = false"
+          >
+            ×
+          </button>
+          <h2 class="info-panel__title">操作指南</h2>
+          <ul class="info-panel__list">
+            <li><strong>拖曳</strong>旋轉視角，<strong>滾輪 / 雙指</strong>縮放</li>
+            <li><strong>點擊星星</strong>閱讀文章，游標懸停可預覽</li>
+            <li><strong>右上搜尋</strong>找文章，<strong>左下圖例</strong>篩選分類</li>
+            <li v-if="galaxies.length > 1">
+              <strong>縮小到底後繼續滾動</strong>離開星系、綜覽星系群；點擊星系或滾輪放大即可返回
+            </li>
+            <li>左上<strong>星系群</strong>麵包屑隨時可切換視角</li>
+          </ul>
+        </section>
+      </div>
     </Transition>
 
     <!-- Hover tooltip: minimal card floated above the focused star. -->
@@ -1293,6 +1432,105 @@ onMounted(() => {
 .hint-fade-enter-from,
 .hint-fade-leave-to {
   opacity: 0;
+}
+
+/* --- Exit pill: overscroll-to-exit progress -------------------------------- */
+.exit-charge {
+  position: fixed;
+  left: 50%;
+  bottom: clamp(72px, 12vh, 120px);
+  transform: translateX(-50%);
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 18px;
+  border-radius: 16px;
+  background: rgba(12, 16, 28, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  color: #d7def5;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  pointer-events: none;
+}
+.exit-charge__bar {
+  display: block;
+  width: 150px;
+  height: 3px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.15);
+  overflow: hidden;
+}
+.exit-charge__fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #8ab4ff;
+}
+.charge-fade-enter-active,
+.charge-fade-leave-active {
+  transition: opacity 0.25s ease;
+}
+.charge-fade-enter-from,
+.charge-fade-leave-to {
+  opacity: 0;
+}
+
+/* --- "?" info button + controls guide ------------------------------------- */
+.info-button {
+  position: fixed;
+  right: clamp(16px, 3vw, 28px);
+  bottom: clamp(16px, 3vw, 28px);
+  z-index: 20;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(12, 16, 28, 0.45);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  color: #d7def5;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.info-button:hover,
+.info-button:focus-visible {
+  background: rgba(255, 255, 255, 0.14);
+}
+/* Double selectors: these must beat the base .reading-scrim/.reading-panel
+   rules, which are declared later in this file. */
+.reading-scrim.info-scrim {
+  justify-content: center;
+  align-items: center;
+}
+.reading-panel.info-panel {
+  width: min(400px, 92vw);
+  max-height: 80vh;
+}
+.info-panel__title {
+  margin: 4px 0 16px;
+  font-size: 20px;
+  font-weight: 700;
+}
+.info-panel__list {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 14px;
+  line-height: 1.9;
+  opacity: 0.9;
+}
+.info-panel__list li + li {
+  margin-top: 6px;
+}
+.info-panel__list strong {
+  color: #8ab4ff;
+  font-weight: 600;
 }
 
 /* --- Hover tooltip: minimal, translucent, follows the star --------------- */
