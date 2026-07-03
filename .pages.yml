@@ -1,0 +1,48 @@
+# Pages CMS (https://pagescms.org) — zero-backend admin UI for this repo.
+# Sign in at https://app.pagescms.org with GitHub, pick this repository, and
+# you get a web editor for the posts collection below. Saving commits straight
+# to the repo, so a new post = a new star after the next deploy.
+media: false
+
+content:
+  - name: posts
+    label: 文章 (Posts)
+    type: collection
+    path: src/content/posts
+    filename: "{fields.title}.md"
+    view:
+      fields: [title, date, category]
+      sort: [date]
+      default:
+        sort: date
+        order: desc
+    fields:
+      - name: title
+        label: 標題
+        type: string
+        required: true
+      - name: date
+        label: 顯示日期
+        type: string
+        required: true
+        description: '例如 "2025.04" 或 "2025.04.16"'
+        pattern:
+          regex: '^\d{4}\.\d{2}(\.\d{2})?$'
+          message: '格式須為 YYYY.MM 或 YYYY.MM.DD'
+      - name: category
+        label: 分類
+        type: select
+        required: true
+        options:
+          values: [project, frontend, philosophy, blog, demo]
+      - name: tags
+        label: 標籤
+        type: string
+        list: true
+      - name: summary
+        label: 一行摘要
+        type: string
+        required: true
+      - name: body
+        label: 內文
+        type: rich-text
