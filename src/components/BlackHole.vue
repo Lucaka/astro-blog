@@ -411,6 +411,7 @@ onMounted(() => {
   const easeOut = (x: number) => 1 - Math.pow(1 - x, 3);
 
   let transition: {
+    from: "group" | "galaxy";
     to: "group" | "galaxy";
     t: number;
     camFrom: THREE.Vector3;
@@ -432,6 +433,7 @@ onMounted(() => {
     contentStars.focused = null;
     impostors.setOpacity(0);
     transition = {
+      from: "galaxy",
       to: "group",
       t: 0,
       camFrom: camera.position.clone(),
@@ -445,21 +447,35 @@ onMounted(() => {
     };
   }
 
+  // Dive into a galaxy: from the group view (clicking an impostor, zooming
+  // in) or straight from another galaxy (cross-galaxy search), which warps
+  // directly through one dip instead of chaining two via the group view.
   function startToGalaxy(galaxy: Galaxy) {
-    if (viewMode.value !== "group") return;
+    const from = viewMode.value;
+    if ((from !== "group" && from !== "galaxy") || selectedPost.value) return;
     viewMode.value = "toGalaxy";
     controls.enabled = false;
+    flight = null;
+    contentStars.focused = null;
     hoveredGalaxy.value = null;
     impostors.hovered = null;
     const anchor =
       impostors.findById(galaxy.id)?.anchor.position ?? new THREE.Vector3();
     transition = {
+      from,
       to: "galaxy",
       t: 0,
       camFrom: camera.position.clone(),
-      // Dive most of the way toward the chosen impostor...
-      camMid: camera.position.clone().lerp(anchor, 0.75),
-      // ...and come out of the dip already inside the galaxy, easing to rest.
+      // From the group: dive most of the way toward the chosen impostor.
+      // From a galaxy: pull back along the view ray into the dip instead.
+      camMid:
+        from === "group"
+          ? camera.position.clone().lerp(anchor, 0.75)
+          : camera.position
+              .clone()
+              .normalize()
+              .multiplyScalar(Math.max(camera.position.length() * 1.8, 34)),
+      // Come out of the dip already inside the galaxy, easing to rest.
       camReFrom: GALAXY_CAM.clone().multiplyScalar(1.7),
       camTo: GALAXY_CAM.clone(),
       swapped: false,
@@ -498,7 +514,13 @@ onMounted(() => {
     }
     if (viewMode.value !== "galaxy") return; // mid-transition: ignore
     const home = findGalaxyOf(galaxies, slug);
-    if (home && home.id !== activeGalaxy.value.id) activateGalaxy(home);
+    if (home && home.id !== activeGalaxy.value.id) {
+      // Cross-galaxy hit: warp through the dip (never an unmasked swap) and
+      // focus the star once the dive lands.
+      pendingFocusSlug = slug;
+      startToGalaxy(home);
+      return;
+    }
     const star = contentStars.findBySlug(slug);
     if (!star) return;
     contentStars.focused = star;
@@ -627,7 +649,7 @@ onMounted(() => {
       if (t < 0.5) {
         const k = easeIn(t / 0.5);
         camera.position.lerpVectors(transition.camFrom, transition.camMid, k);
-        if (transition.to === "group") {
+        if (transition.from === "galaxy") {
           // The galaxy recedes into a dot as the camera pulls away.
           galaxyScene.scale.setScalar(1 - k * 0.55);
         } else {
