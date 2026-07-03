@@ -19,11 +19,57 @@ import { createDysonSphere } from "../three/blackhole/dysonSphere";
 import { createEinsteinRing } from "../three/blackhole/einsteinRing";
 import { createTidalDebris } from "../three/blackhole/tidalDebris";
 import { createContentStars } from "../three/blackhole/contentStars";
+import { createGalaxyImpostors } from "../three/blackhole/galaxyImpostors";
 import { CATEGORY_META, type Post, type PostCategory } from "../data/posts";
 import { postPath } from "../utils/posts";
+import {
+  partitionIntoGalaxies,
+  findGalaxyOf,
+  type Galaxy,
+} from "../utils/galaxies";
 
 // Post metadata comes from the Markdown content collection via index.astro.
 const props = defineProps<{ posts: Post[] }>();
+
+// `?demo=N` appends N synthetic posts (client-side only) so the multi-galaxy
+// group view and its transitions can be exercised before the real archive
+// grows past one volume. Demo posts have no bodies — they only fill galaxies.
+function makeDemoPosts(): Post[] {
+  if (typeof window === "undefined") return [];
+  const raw = new URLSearchParams(window.location.search).get("demo");
+  if (raw === null) return [];
+  const count = Math.min(400, Math.max(1, Number(raw) || 90));
+  const categories = Object.keys(CATEGORY_META) as PostCategory[];
+  return Array.from({ length: count }, (_, i) => ({
+    slug: `demo-${i + 1}`,
+    title: `演示文章 ${i + 1}`,
+    date: `${2019 + Math.floor(i / 18)}.${String((i % 12) + 1).padStart(2, "0")}`,
+    category: categories[i % categories.length],
+    tags: ["demo"],
+    summary: "?demo 模式的假資料，用來測試多星系視角。",
+  }));
+}
+
+const allPosts: Post[] = [...props.posts, ...makeDemoPosts()];
+
+// Semantic zoom: posts are chunked into galaxies of at most 40 stars each.
+// Zooming far enough out swaps the black-hole scene for the "galaxy group"
+// view, where every volume is a clickable impostor.
+const galaxies = partitionIntoGalaxies(allPosts);
+const activeGalaxy = ref<Galaxy>(
+  galaxies[galaxies.length - 1] ?? {
+    id: "galaxy-1",
+    index: 1,
+    name: "第 1 星系",
+    era: "—",
+    posts: [],
+  },
+);
+
+// Which world the camera lives in; `to*` are the hyperspace-dip transitions.
+// Mirrored into the template for the breadcrumb and hints.
+const viewMode = ref<"galaxy" | "group" | "toGroup" | "toGalaxy">("galaxy");
+const hoveredGalaxy = ref<Galaxy | null>(null);
 
 const container = ref<HTMLDivElement | null>(null);
 
@@ -45,7 +91,7 @@ const searchQuery = ref("");
 const searchResults = computed(() => {
   const q = searchQuery.value.trim().toLowerCase();
   if (!q) return [];
-  return props.posts
+  return allPosts
     .filter(
       (p) =>
         p.title.toLowerCase().includes(q) ||
@@ -63,6 +109,12 @@ const HINT_KEY = "universe-hint-seen";
 // Bridges into the three.js world, assigned once the scene exists.
 let flyToStar: (slug: string) => void = () => {};
 let applyFilter: (categories: Set<PostCategory>) => void = () => {};
+let requestGroupView: () => void = () => {};
+
+// Breadcrumb "星系群" crumb: zoom out to the group view.
+function openGroupView() {
+  requestGroupView();
+}
 
 // Category legend entries for the corner key.
 const legend = (Object.keys(CATEGORY_META) as PostCategory[]).map((c) => ({
@@ -101,7 +153,7 @@ function closeModal() {
 }
 function handlePopstate(event: PopStateEvent) {
   const slug = event.state?.universe as string | undefined;
-  const post = slug ? props.posts.find((p) => p.slug === slug) : undefined;
+  const post = slug ? allPosts.find((p) => p.slug === slug) : undefined;
   if (post) {
     openPost(post, false);
   } else {
@@ -242,11 +294,12 @@ onMounted(() => {
   const dysonSphere = createDysonSphere();
   const einsteinRing = createEinsteinRing();
   const tidalDebris = createTidalDebris();
-  const contentStars = createContentStars(props.posts);
 
-  scene.add(
-    starfield,
-    nebula,
+  // Everything belonging to a single galaxy lives in this group so the view
+  // transition can shrink/hide it as one unit; the starfield and nebula are
+  // the shared backdrop across both views.
+  const galaxyScene = new THREE.Group();
+  galaxyScene.add(
     gravityGrid.lines,
     accretionDisk.points,
     orbitingBodies.group,
@@ -254,11 +307,37 @@ onMounted(() => {
     dysonSphere.group,
     einsteinRing,
     tidalDebris,
-    contentStars.group,
   );
+
+  let contentStars = createContentStars(activeGalaxy.value.posts);
+  galaxyScene.add(contentStars.group);
+
+  const impostors = createGalaxyImpostors(galaxies);
+  impostors.setActive(activeGalaxy.value.id);
+  impostors.group.visible = false;
+
+  scene.add(starfield, nebula, galaxyScene, impostors.group);
 
   applyFilter = (categories) =>
     contentStars.setFilter(categories.size > 0 ? categories : null);
+
+  // Swap the interactive stars over to another volume's posts. The rest of
+  // the black-hole scene is galaxy-agnostic, so only the stars are rebuilt.
+  function activateGalaxy(galaxy: Galaxy) {
+    if (galaxy.id === activeGalaxy.value.id) return;
+    flight = null;
+    contentStars.focused = null;
+    contentStars.hovered = null;
+    galaxyScene.remove(contentStars.group);
+    contentStars.dispose();
+    contentStars = createContentStars(galaxy.posts);
+    contentStars.setFilter(
+      activeCategories.value.size > 0 ? activeCategories.value : null,
+    );
+    galaxyScene.add(contentStars.group);
+    activeGalaxy.value = galaxy;
+    impostors.setActive(galaxy.id);
+  }
 
   const composer = new EffectComposer(renderer);
   composer.addPass(new RenderPass(scene, camera));
@@ -311,8 +390,95 @@ onMounted(() => {
     window.dispatchEvent(
       new CustomEvent("blackhole:reading", { detail: post !== null }),
     );
-    controls.enabled = post === null;
+    controls.enabled = post === null && !transition;
   });
+
+  // --- Semantic zoom: galaxy <-> galaxy group ------------------------------
+  // Zooming out past TO_GROUP_AT leaves the galaxy; zooming in past
+  // TO_GALAXY_AT (or clicking an impostor) dives back in. Each switch is a
+  // short "hyperspace dip": exposure sinks to near-black at the midpoint,
+  // where the two worlds swap visibility — no cross-view LOD needed. The
+  // thresholds sit far from where the camera lands on the other side, which
+  // is the hysteresis that keeps the boundary from flickering.
+  const GALAXY_CAM = new THREE.Vector3(0, 5.5, 16);
+  const GROUP_CAM = new THREE.Vector3(0, 20, 52);
+  const GALAXY_DIST = { min: 4.5, max: 50 };
+  const GROUP_DIST = { min: 16, max: 70 };
+  const TO_GROUP_AT = 46;
+  const TO_GALAXY_AT = 20;
+
+  const easeIn = (x: number) => x * x * x;
+  const easeOut = (x: number) => 1 - Math.pow(1 - x, 3);
+
+  let transition: {
+    to: "group" | "galaxy";
+    t: number;
+    camFrom: THREE.Vector3;
+    camMid: THREE.Vector3;
+    camReFrom: THREE.Vector3;
+    camTo: THREE.Vector3;
+    swapped: boolean;
+    targetGalaxy: Galaxy | null;
+  } | null = null;
+  // Search hit living in another galaxy: focus it once the dive-in lands.
+  let pendingFocusSlug: string | null = null;
+
+  function startToGroup() {
+    if (viewMode.value !== "galaxy" || selectedPost.value) return;
+    viewMode.value = "toGroup";
+    controls.enabled = false;
+    // Hand the camera over from any in-progress search flight.
+    flight = null;
+    contentStars.focused = null;
+    impostors.setOpacity(0);
+    transition = {
+      to: "group",
+      t: 0,
+      camFrom: camera.position.clone(),
+      // Keep pulling back along the current view ray...
+      camMid: camera.position.clone().normalize().multiplyScalar(64),
+      // ...then settle onto the group overview from slightly beyond it.
+      camReFrom: GROUP_CAM.clone().multiplyScalar(1.2),
+      camTo: GROUP_CAM.clone(),
+      swapped: false,
+      targetGalaxy: null,
+    };
+  }
+
+  function startToGalaxy(galaxy: Galaxy) {
+    if (viewMode.value !== "group") return;
+    viewMode.value = "toGalaxy";
+    controls.enabled = false;
+    hoveredGalaxy.value = null;
+    impostors.hovered = null;
+    const anchor =
+      impostors.findById(galaxy.id)?.anchor.position ?? new THREE.Vector3();
+    transition = {
+      to: "galaxy",
+      t: 0,
+      camFrom: camera.position.clone(),
+      // Dive most of the way toward the chosen impostor...
+      camMid: camera.position.clone().lerp(anchor, 0.75),
+      // ...and come out of the dip already inside the galaxy, easing to rest.
+      camReFrom: GALAXY_CAM.clone().multiplyScalar(1.7),
+      camTo: GALAXY_CAM.clone(),
+      swapped: false,
+      targetGalaxy: galaxy,
+    };
+  }
+  requestGroupView = startToGroup;
+
+  // Midpoint of the dip: the screen is near-black, swap worlds.
+  function swapWorlds(to: "group" | "galaxy", targetGalaxy: Galaxy | null) {
+    const inGalaxy = to === "galaxy";
+    if (inGalaxy && targetGalaxy) activateGalaxy(targetGalaxy);
+    galaxyScene.visible = inGalaxy;
+    galaxyScene.scale.setScalar(1);
+    impostors.group.visible = !inGalaxy;
+    lensingPass.enabled = inGalaxy;
+    controls.minDistance = inGalaxy ? GALAXY_DIST.min : GROUP_DIST.min;
+    controls.maxDistance = inGalaxy ? GALAXY_DIST.max : GROUP_DIST.max;
+  }
 
   // --- Search fly-to --------------------------------------------------------
   // Picking a search result pins the star (paused + highlighted) and eases the
@@ -323,6 +489,16 @@ onMounted(() => {
   const flightDest = new THREE.Vector3();
   const flightSpherical = new THREE.Spherical();
   flyToStar = (slug) => {
+    // The star may live in another volume: switch galaxies first if needed.
+    // From the group view, dive into the right galaxy and focus on arrival.
+    if (viewMode.value === "group") {
+      pendingFocusSlug = slug;
+      startToGalaxy(findGalaxyOf(galaxies, slug) ?? activeGalaxy.value);
+      return;
+    }
+    if (viewMode.value !== "galaxy") return; // mid-transition: ignore
+    const home = findGalaxyOf(galaxies, slug);
+    if (home && home.id !== activeGalaxy.value.id) activateGalaxy(home);
     const star = contentStars.findBySlug(slug);
     if (!star) return;
     contentStars.focused = star;
@@ -359,8 +535,13 @@ onMounted(() => {
     if (moved > 6) return;
     setPointer(event);
     raycaster.setFromCamera(pointer, camera);
-    const hit = raycaster.intersectObjects(contentStars.pickables, false)[0];
-    if (hit) openPost(hit.object.userData.post as Post);
+    if (viewMode.value === "galaxy") {
+      const hit = raycaster.intersectObjects(contentStars.pickables, false)[0];
+      if (hit) openPost(hit.object.userData.post as Post);
+    } else if (viewMode.value === "group") {
+      const hit = raycaster.intersectObjects(impostors.pickables, false)[0];
+      if (hit) startToGalaxy(hit.object.userData.galaxy as Galaxy);
+    }
   }
   renderer.domElement.addEventListener("pointermove", handlePointerMove);
   renderer.domElement.addEventListener("pointerdown", handlePointerDown);
@@ -418,13 +599,78 @@ onMounted(() => {
       : THREE.MathUtils.lerp(EXPLORE_STATE.speed, READING_STATE.speed, mix);
     const simDt = dt * motion;
 
-    accretionDisk.update(simDt, camera);
-    gravityGrid.update(simDt);
-    orbitingBodies.update(simDt);
-    jets.update(simDt);
-    dysonSphere.update(simDt);
-    // Content stars get real dt for hover/filter easing, `motion` for orbits.
-    contentStars.update(dt, motion);
+    if (galaxyScene.visible) {
+      accretionDisk.update(simDt, camera);
+      gravityGrid.update(simDt);
+      orbitingBodies.update(simDt);
+      jets.update(simDt);
+      dysonSphere.update(simDt);
+      // Content stars get real dt for hover/filter easing, `motion` for orbits.
+      contentStars.update(dt, motion);
+    }
+    if (impostors.group.visible) {
+      impostors.update(dt, motion);
+    }
+
+    // --- View transition: the hyperspace dip --------------------------------
+    if (transition) {
+      const duration = reducedMotion ? 0.35 : 1.5;
+      transition.t = Math.min(1, transition.t + dt / duration);
+      const t = transition.t;
+
+      if (!transition.swapped && t >= 0.5) {
+        transition.swapped = true;
+        swapWorlds(transition.to, transition.targetGalaxy);
+        camera.position.copy(transition.camReFrom);
+      }
+
+      if (t < 0.5) {
+        const k = easeIn(t / 0.5);
+        camera.position.lerpVectors(transition.camFrom, transition.camMid, k);
+        if (transition.to === "group") {
+          // The galaxy recedes into a dot as the camera pulls away.
+          galaxyScene.scale.setScalar(1 - k * 0.55);
+        } else {
+          impostors.setOpacity(1 - k);
+        }
+      } else {
+        const k = easeOut((t - 0.5) / 0.5);
+        camera.position.lerpVectors(transition.camReFrom, transition.camTo, k);
+        if (transition.to === "group") {
+          impostors.setOpacity(k);
+        } else {
+          galaxyScene.scale.setScalar(0.45 + k * 0.55);
+        }
+      }
+
+      // Exposure sinks to near-black at the swap and recovers after.
+      renderer.toneMappingExposure *= 1 - 0.9 * Math.sin(Math.PI * t);
+
+      if (t >= 1) {
+        const arrived = transition.to;
+        transition = null;
+        viewMode.value = arrived;
+        controls.enabled = !selectedPost.value;
+        if (arrived === "galaxy" && pendingFocusSlug) {
+          const slug = pendingFocusSlug;
+          pendingFocusSlug = null;
+          flyToStar(slug);
+        }
+      }
+    } else if (!selectedPost.value) {
+      // Wheel/pinch semantic zoom triggers. The camera always orbits the
+      // origin, so its length is the orbit distance.
+      const dist = camera.position.length();
+      if (
+        viewMode.value === "galaxy" &&
+        galaxies.length > 1 &&
+        dist >= TO_GROUP_AT
+      ) {
+        startToGroup();
+      } else if (viewMode.value === "group" && dist <= TO_GALAXY_AT) {
+        startToGalaxy(activeGalaxy.value);
+      }
+    }
 
     // Search flight: ease the camera toward the pinned star's viewpoint.
     if (flight?.star) {
@@ -444,11 +690,36 @@ onMounted(() => {
       if (a >= 1) flight = null;
     }
 
-    // Hover picking: skip while a post is open (the panel covers the scene).
-    if (selectedPost.value) {
+    // Hover picking: skip while a post is open (the panel covers the scene)
+    // or while a view transition is flying the camera.
+    if (selectedPost.value || transition) {
       contentStars.hovered = null;
       hoveredPost.value = null;
+      impostors.hovered = null;
+      hoveredGalaxy.value = null;
+    } else if (viewMode.value === "group") {
+      contentStars.hovered = null;
+      hoveredPost.value = null;
+      raycaster.setFromCamera(pointer, camera);
+      const hit = raycaster.intersectObjects(impostors.pickables, false)[0];
+      const mesh = (hit?.object as THREE.Mesh) ?? null;
+      impostors.hovered = mesh;
+      renderer.domElement.style.cursor = mesh ? "pointer" : "default";
+      if (mesh) {
+        hoveredGalaxy.value = mesh.userData.galaxy as Galaxy;
+        // Hitboxes sit inside positioned anchors: project the world position.
+        projected.setFromMatrixPosition(mesh.matrixWorld).project(camera);
+        const rect = renderer.domElement.getBoundingClientRect();
+        hoverStyle.value = {
+          left: `${rect.left + ((projected.x + 1) / 2) * rect.width}px`,
+          top: `${rect.top + ((1 - projected.y) / 2) * rect.height}px`,
+        };
+      } else {
+        hoveredGalaxy.value = null;
+      }
     } else {
+      impostors.hovered = null;
+      hoveredGalaxy.value = null;
       raycaster.setFromCamera(pointer, camera);
       const hit = raycaster.intersectObjects(contentStars.pickables, false)[0];
       const mesh = (hit?.object as THREE.Mesh) ?? null;
@@ -468,7 +739,9 @@ onMounted(() => {
       }
     }
 
-    controls.update();
+    // OrbitControls' update() re-clamps the camera to its distance limits,
+    // which would fight the transition's own camera flight — skip it there.
+    if (!transition) controls.update();
 
     // Feed the lensing pass how edge-on the disk is: 0 looking straight down
     // at it, 1 with the camera in its plane. Drives the fold-over arcs
@@ -554,6 +827,28 @@ onMounted(() => {
   <div class="universe">
     <div ref="container" class="black-hole-canvas"></div>
 
+    <!-- Where am I: 星系群 › 星系 breadcrumb; the group crumb zooms out. -->
+    <nav
+      class="breadcrumb"
+      :class="{ 'breadcrumb--hidden': selectedPost }"
+      aria-label="宇宙層級"
+    >
+      <button
+        type="button"
+        class="breadcrumb__link"
+        :disabled="viewMode !== 'galaxy'"
+        @click="openGroupView"
+      >
+        星系群
+      </button>
+      <template v-if="viewMode === 'galaxy' || viewMode === 'toGalaxy'">
+        <span class="breadcrumb__sep" aria-hidden="true">›</span>
+        <span class="breadcrumb__current"
+          >{{ activeGalaxy.name }} · {{ activeGalaxy.era }}</span
+        >
+      </template>
+    </nav>
+
     <!-- Search Galaxy: keyword -> fly the camera to the matching star. -->
     <div class="search" :class="{ 'search--hidden': selectedPost }">
       <input
@@ -594,7 +889,10 @@ onMounted(() => {
     </div>
 
     <!-- Category legend: click a category to spotlight only its stars. -->
-    <div class="legend" :class="{ 'legend--hidden': selectedPost }">
+    <div
+      class="legend"
+      :class="{ 'legend--hidden': selectedPost || viewMode !== 'galaxy' }"
+    >
       <button
         v-for="item in legend"
         :key="item.category"
@@ -619,6 +917,13 @@ onMounted(() => {
       </p>
     </Transition>
 
+    <!-- Group view hint: how to get back into a galaxy. -->
+    <Transition name="hint-fade">
+      <p v-if="viewMode === 'group'" class="hint" aria-hidden="true">
+        點擊星系進入 · 滾輪放大返回
+      </p>
+    </Transition>
+
     <!-- Hover tooltip: minimal card floated above the focused star. -->
     <div
       v-if="hoveredPost && !selectedPost && hoverStyle"
@@ -639,6 +944,18 @@ onMounted(() => {
           class="star-tooltip__tag"
           >{{ tag }}</span
         >
+      </div>
+    </div>
+
+    <!-- Hover tooltip for a galaxy impostor in the group view. -->
+    <div
+      v-if="hoveredGalaxy && hoverStyle && viewMode === 'group'"
+      class="star-tooltip"
+      :style="hoverStyle"
+    >
+      <div class="star-tooltip__title">{{ hoveredGalaxy.name }}</div>
+      <div class="star-tooltip__date">
+        {{ hoveredGalaxy.era }} · {{ hoveredGalaxy.posts.length }} 篇文章
       </div>
     </div>
 
@@ -718,6 +1035,66 @@ onMounted(() => {
 
 .black-hole-canvas :deep(canvas) {
   display: block;
+}
+
+/* --- Breadcrumb: 星系群 › 星系 --------------------------------------------- */
+.breadcrumb {
+  position: fixed;
+  top: clamp(14px, 3vw, 24px);
+  left: clamp(16px, 3vw, 32px);
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 12px;
+  background: rgba(12, 16, 28, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  color: #d7def5;
+  font-size: 12px;
+  transition:
+    opacity 0.35s ease,
+    transform 0.35s ease;
+}
+.breadcrumb--hidden {
+  opacity: 0;
+  transform: translateY(-8px);
+  pointer-events: none;
+}
+.breadcrumb__link {
+  border: none;
+  background: none;
+  color: #8ab4ff;
+  font: inherit;
+  padding: 2px 6px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.breadcrumb__link:disabled {
+  color: inherit;
+  opacity: 0.75;
+  cursor: default;
+}
+.breadcrumb__link:not(:disabled):hover,
+.breadcrumb__link:not(:disabled):focus-visible {
+  background: rgba(255, 255, 255, 0.08);
+}
+.breadcrumb__sep {
+  opacity: 0.5;
+}
+.breadcrumb__current {
+  opacity: 0.9;
+}
+
+/* Mobile: the search box owns the top edge; tuck the breadcrumb just above
+   the legend instead so they never overlap. */
+@media (max-width: 640px) {
+  .breadcrumb {
+    top: auto;
+    bottom: clamp(58px, 14vw, 76px);
+  }
 }
 
 /* --- Search Galaxy -------------------------------------------------------- */
