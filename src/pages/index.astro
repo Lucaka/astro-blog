@@ -2,7 +2,7 @@
 import { getCollection, render } from "astro:content";
 import BlackHole from "../components/BlackHole.vue";
 import type { Post } from "../data/posts";
-import { readingTimeMinutes, postPath } from "../utils/posts";
+import { parseDisplayDate, readingTimeMinutes, postPath } from "../utils/posts";
 
 // Load every star from the Markdown content collection, newest first.
 const entries = (await getCollection("posts")).sort((a, b) =>
@@ -32,6 +32,24 @@ const bodies = await Promise.all(
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const description =
   "James Universe — 在 3D 宇宙裡探索的部落格:前端、圖學與隨筆。每顆星星都是一篇文章。";
+const ogImage = new URL(`${base}/og.png`, Astro.site);
+
+// Structured data: tell search engines this is a blog and list every post.
+const jsonLd = JSON.stringify({
+  "@context": "https://schema.org",
+  "@type": "Blog",
+  name: "James Universe",
+  url: new URL(`${base}/`, Astro.site),
+  description,
+  inLanguage: "zh-Hant",
+  blogPost: posts.map((post) => ({
+    "@type": "BlogPosting",
+    headline: post.title,
+    description: post.summary,
+    datePublished: parseDisplayDate(post.date).toISOString().slice(0, 10),
+    url: new URL(postPath(post.slug), Astro.site),
+  })),
+});
 ---
 
 <html lang="zh-Hant">
@@ -49,10 +67,20 @@ const description =
 			title="James Universe"
 			href={`${base}/rss.xml`}
 		/>
+		<meta name="theme-color" content="#05070f" />
+		<link rel="apple-touch-icon" href={`${base}/apple-touch-icon.png`} />
 		<meta property="og:type" content="website" />
+		<meta property="og:site_name" content="James Universe" />
+		<meta property="og:locale" content="zh_TW" />
 		<meta property="og:title" content="James Universe" />
 		<meta property="og:description" content={description} />
 		<meta property="og:url" content={new URL(`${base}/`, Astro.site)} />
+		<meta property="og:image" content={ogImage} />
+		<meta property="og:image:width" content="1200" />
+		<meta property="og:image:height" content="630" />
+		<meta property="og:image:alt" content="James Universe — 3D 宇宙部落格的黑洞星空" />
+		<meta name="twitter:card" content="summary_large_image" />
+		<script is:inline type="application/ld+json" set:html={jsonLd} />
 	</head>
 	<body>
 		{/* Real links to every post: keyboard/screen-reader users can Tab through
@@ -72,10 +100,22 @@ const description =
 			</ul>
 		</nav>
 
+		{/* First paint: a static splash so the first load isn't a black screen
+		    while the 3D bundle downloads. The island fades it out once the
+		    scene is actually rendering. */}
+		<div id="universe-loading" class="universe-loading" aria-hidden="true">
+			<p class="universe-loading__title">James Universe</p>
+			<p class="universe-loading__sub">正在點亮星空…</p>
+		</div>
+
 		<noscript>
 			<style>
 				/* Without JS the universe can't render: promote the link list to a
-				   normal, visible page instead of a black screen. */
+				   normal, visible page instead of a black screen. Hide the JS-only
+				   loading splash so it never sits on top of the list. */
+				#universe-loading {
+					display: none !important;
+				}
 				.post-index {
 					position: fixed !important;
 					inset: 0 !important;
@@ -120,6 +160,60 @@ const description =
 		display: none;
 	}
 
+	/* Static loading splash: contentful first paint before any JS arrives.
+	   Sits above the (initially empty) canvas layer; the island adds
+	   `--done` after the first rendered frame, then removes the node. */
+	.universe-loading {
+		position: fixed;
+		inset: 0;
+		z-index: 10;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 10px;
+		background: radial-gradient(ellipse at 50% 42%, #10172b 0%, #05070f 55%, #000 100%);
+		color: #eef2ff;
+		font-family:
+			ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+		transition: opacity 0.7s ease;
+		pointer-events: none;
+	}
+	.universe-loading--done {
+		opacity: 0;
+	}
+	.universe-loading__title {
+		margin: 0;
+		font-size: clamp(22px, 4vw, 32px);
+		font-weight: 700;
+		letter-spacing: 0.14em;
+	}
+	.universe-loading__sub {
+		margin: 0;
+		font-size: 13px;
+		letter-spacing: 0.22em;
+		color: #8ea0cc;
+		animation: universe-loading-pulse 2.2s ease-in-out infinite;
+	}
+	@keyframes universe-loading-pulse {
+		0%,
+		100% {
+			opacity: 0.35;
+		}
+		50% {
+			opacity: 0.9;
+		}
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.universe-loading {
+			transition-duration: 0.01s;
+		}
+		.universe-loading__sub {
+			animation: none;
+			opacity: 0.7;
+		}
+	}
+
 	/* Visually hidden but focusable: each link pops into view when Tabbed to.
 	   The container itself must NOT be clipped — a clip-path on the ancestor
 	   would also clip the revealed, fixed-position focused link. */
@@ -145,6 +239,7 @@ const description =
 		overflow: hidden;
 		clip-path: inset(50%);
 		margin: 0;
+		font-size: 24px; /* only visible in the promoted noscript layout */
 	}
 	.post-index a {
 		position: fixed;
@@ -176,8 +271,5 @@ const description =
 		font-size: 13px;
 		opacity: 0.7;
 		margin-top: 4px;
-	}
-	.post-index__title {
-		font-size: 24px;
 	}
 </style>

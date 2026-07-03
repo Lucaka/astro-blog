@@ -505,6 +505,18 @@ onMounted(() => {
   document.addEventListener("visibilitychange", handleVisibility);
   start();
 
+  // Fade the static loading splash once the scene has actually painted a
+  // frame (two rAFs after start = first frame is on screen), then drop it.
+  const splash = document.getElementById("universe-loading");
+  if (splash) {
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        splash.classList.add("universe-loading--done");
+        window.setTimeout(() => splash.remove(), 800);
+      }),
+    );
+  }
+
   onBeforeUnmount(() => {
     stop();
     window.clearTimeout(hintTimer);
@@ -553,7 +565,10 @@ onMounted(() => {
         @keydown.enter.prevent="onSearchEnter"
         @keydown.escape="searchQuery = ''"
       />
-      <ul v-if="searchResults.length" class="search__results" role="listbox">
+      <!-- Plain list of buttons: no listbox role — these are ordinary
+           focusable buttons, and a real listbox would require option children
+           and arrow-key management. -->
+      <ul v-if="searchResults.length" class="search__results">
         <li v-for="post in searchResults" :key="post.slug">
           <button
             type="button"
