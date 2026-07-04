@@ -102,20 +102,21 @@ const panelEl = ref<HTMLElement | null>(null);
 // Legend filter: empty set = show every category.
 const activeCategories = ref<Set<PostCategory>>(new Set());
 
-// Search Galaxy: type a keyword, pick a result, the camera flies to its star.
+// Sidebar search: the query filters the article list in place. Matches span
+// every galaxy; picking one flies the camera there (switching volumes first
+// when needed) and opens the article on arrival.
 const searchQuery = ref("");
-const searchResults = computed(() => {
+const searching = computed(() => searchQuery.value.trim().length > 0);
+const filteredPosts = computed(() => {
   const q = searchQuery.value.trim().toLowerCase();
-  if (!q) return [];
-  return allPosts
-    .filter(
-      (p) =>
-        p.title.toLowerCase().includes(q) ||
-        p.summary.toLowerCase().includes(q) ||
-        p.tags.some((t) => t.toLowerCase().includes(q)) ||
-        catLabel(p.category).toLowerCase().includes(q),
-    )
-    .slice(0, 8);
+  if (!q) return allPosts;
+  return allPosts.filter(
+    (p) =>
+      p.title.toLowerCase().includes(q) ||
+      p.summary.toLowerCase().includes(q) ||
+      p.tags.some((t) => t.toLowerCase().includes(q)) ||
+      catLabel(p.category).toLowerCase().includes(q),
+  );
 });
 
 // Sidebar article list: a plain, blog-style index of every post. Open/closed
@@ -140,6 +141,7 @@ const HINT_KEY = "universe-hint-seen";
 
 // Bridges into the three.js world, assigned once the scene exists.
 let flyToStar: (slug: string) => void = () => {};
+let flyToPostAndOpen: (post: Post) => void = () => {};
 let applyFilter: (categories: Set<PostCategory>) => void = () => {};
 let requestGroupView: () => void = () => {};
 let highlightStar: (slug: string | null) => void = () => {};
@@ -149,9 +151,15 @@ let highlightStar: (slug: string | null) => void = () => {};
 function hoverListPost(slug: string | null) {
   highlightStar(slug);
 }
+// Picking an entry keeps the universe feel: the camera flies to the star
+// (diving across galaxies when needed) and the article opens on arrival.
 function openFromList(post: Post) {
   highlightStar(null);
-  openPost(post);
+  flyToPostAndOpen(post);
+}
+function onSearchEnter() {
+  const first = searching.value ? filteredPosts.value[0] : undefined;
+  if (first) openFromList(first);
 }
 // The panel can disappear out from under the cursor (opening a post, leaving
 // the galaxy view), so mouseleave alone can't be trusted to clean up.
@@ -218,15 +226,6 @@ function toggleCategory(category: PostCategory) {
   }
   activeCategories.value = next;
   applyFilter(next);
-}
-
-function selectSearchResult(post: Post) {
-  searchQuery.value = "";
-  flyToStar(post.slug);
-}
-function onSearchEnter() {
-  const first = searchResults.value[0];
-  if (first) selectSearchResult(first);
 }
 
 // --- Modal accessibility: focus management + trap + Esc --------------------
@@ -487,6 +486,10 @@ onMounted(() => {
   } | null = null;
   // Search hit living in another galaxy: focus it once the dive-in lands.
   let pendingFocusSlug: string | null = null;
+  // Sidebar pick: open this post's reading panel when its flight arrives.
+  // Grabbing the scene or leaving for the group view cancels it with the
+  // flight, so an interrupted flight never pops a panel later.
+  let openOnArrival: Post | null = null;
   // Overscroll accumulator behind the `exitProgress` ref (0 -> 1 launches).
   let exitCharge = 0;
   // Exiting takes TWO gestures: the scroll that hits the wall never counts —
@@ -507,6 +510,7 @@ onMounted(() => {
     nearExitWall.value = false;
     // Hand the camera over from any in-progress search flight.
     flight = null;
+    openOnArrival = null;
     contentStars.focused = null;
     impostors.setOpacity(0);
     transition = {
@@ -604,6 +608,15 @@ onMounted(() => {
     flight = { from: camera.position.clone(), t: 0, star };
   };
 
+  // Sidebar click: same flight as a search pick, plus the reading panel on
+  // arrival. If flyToStar bailed (mid-transition, unknown slug) there is
+  // nothing in progress, so drop the pending open instead of leaking it.
+  flyToPostAndOpen = (post) => {
+    openOnArrival = post;
+    flyToStar(post.slug);
+    if (!flight && !pendingFocusSlug) openOnArrival = null;
+  };
+
   // --- Content-star picking ----------------------------------------------
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2(-2, -2); // offscreen until first move
@@ -625,6 +638,7 @@ onMounted(() => {
     // in-progress search flight.
     showHint.value = false;
     flight = null;
+    openOnArrival = null;
     contentStars.focused = null;
   }
   function handlePointerUp(event: PointerEvent) {
@@ -832,7 +846,14 @@ onMounted(() => {
       );
       flightDest.setFromSpherical(flightSpherical);
       camera.position.lerpVectors(flight.from, flightDest, k);
-      if (a >= 1) flight = null;
+      if (a >= 1) {
+        flight = null;
+        if (openOnArrival) {
+          const post = openOnArrival;
+          openOnArrival = null;
+          openPost(post);
+        }
+      }
     }
 
     // Hover picking: skip while a post is open (the panel covers the scene)
@@ -1016,9 +1037,31 @@ onMounted(() => {
         class="post-list"
         aria-label="文章清單"
       >
-        <p class="post-list__count">共 {{ allPosts.length }} 篇</p>
-        <ul class="post-list__items">
-          <li v-for="post in allPosts" :key="post.slug">
+        <!-- Typing filters the list below in place; Enter picks the first
+             match. Cross-galaxy matches are included — clicking one dives
+             into its galaxy on the way to the star. -->
+        <div class="post-list__search">
+          <input
+            v-model="searchQuery"
+            class="post-list__search-input"
+            type="search"
+            placeholder="搜尋星系…"
+            aria-label="搜尋文章"
+            @keydown.enter.prevent="onSearchEnter"
+            @keydown.escape="searchQuery = ''"
+          />
+        </div>
+        <p class="post-list__count" role="status">
+          <template v-if="searching"
+            >符合 {{ filteredPosts.length }} / {{ allPosts.length }} 篇</template
+          >
+          <template v-else>共 {{ allPosts.length }} 篇</template>
+        </p>
+        <p v-if="!filteredPosts.length" class="post-list__empty">
+          沒有符合的星星
+        </p>
+        <ul v-else class="post-list__items">
+          <li v-for="post in filteredPosts" :key="post.slug">
             <button
               type="button"
               class="post-list__item"
@@ -1046,45 +1089,6 @@ onMounted(() => {
         </ul>
       </aside>
     </Transition>
-
-    <!-- Search Galaxy: keyword -> fly the camera to the matching star. -->
-    <div class="search" :class="{ 'search--hidden': selectedPost }">
-      <input
-        v-model="searchQuery"
-        class="search__input"
-        type="search"
-        placeholder="搜尋星系…"
-        aria-label="搜尋文章"
-        @keydown.enter.prevent="onSearchEnter"
-        @keydown.escape="searchQuery = ''"
-      />
-      <!-- Plain list of buttons: no listbox role — these are ordinary
-           focusable buttons, and a real listbox would require option children
-           and arrow-key management. -->
-      <ul v-if="searchResults.length" class="search__results">
-        <li v-for="post in searchResults" :key="post.slug">
-          <button
-            type="button"
-            class="search__result"
-            @click="selectSearchResult(post)"
-          >
-            <span
-              class="search__dot"
-              :style="{ background: catColor(post.category) }"
-            ></span>
-            <span class="search__result-title">{{ post.title }}</span>
-            <span class="search__result-date">{{ post.date }}</span>
-          </button>
-        </li>
-      </ul>
-      <p
-        v-else-if="searchQuery.trim()"
-        class="search__empty"
-        role="status"
-      >
-        沒有符合的星星
-      </p>
-    </div>
 
     <!-- Category legend: click a category to spotlight only its stars. -->
     <div
@@ -1173,9 +1177,9 @@ onMounted(() => {
           <ul class="info-panel__list">
             <li><strong>拖曳</strong>旋轉視角，<strong>滾輪 / 雙指</strong>縮放</li>
             <li><strong>點擊星星</strong>閱讀文章，游標懸停可預覽</li>
-            <li><strong>右上搜尋</strong>找文章，<strong>左下圖例</strong>篩選分類</li>
+            <li><strong>左下圖例</strong>篩選分類</li>
             <li>
-              左上<strong>文章清單</strong>以列表瀏覽全部文章，懸停即可點亮對應的星星
+              左上<strong>文章清單</strong>可瀏覽並<strong>搜尋</strong>全部文章，懸停點亮對應的星星，點擊即飛往該星並開啟文章
             </li>
             <li v-if="galaxies.length > 1">
               <strong>縮小到底後繼續滾動</strong>離開星系、綜覽星系群；點擊星系或滾輪放大即可返回
@@ -1350,8 +1354,8 @@ onMounted(() => {
   opacity: 0.9;
 }
 
-/* Mobile: the search box owns the top edge; tuck the breadcrumb just above
-   the legend instead so they never overlap. */
+/* Mobile: the list toggle owns the top-left corner; tuck the breadcrumb just
+   above the legend instead so they never overlap. */
 @media (max-width: 640px) {
   .breadcrumb {
     top: auto;
@@ -1359,7 +1363,13 @@ onMounted(() => {
   }
 }
 
-/* --- Article list sidebar -------------------------------------------------- */
+/* --- Article list sidebar: a Dyson plate ----------------------------------
+   The chamfered octagon + pale-blue wireframe echoes the Dyson plates
+   orbiting the black hole (three/blackhole/dysonSphere.ts): a faint #88ccff
+   fill behind a brighter #aaddff border. clip-path would cut away a real CSS
+   border, so the outline is layered instead: the element clips to the
+   octagon, ::before paints the line color edge-to-edge, and ::after paints
+   the fill inset 1px with the same octagon — leaving a 1px lit rim. */
 .list-toggle {
   position: fixed;
   top: calc(clamp(14px, 3vw, 24px) + 42px);
@@ -1368,23 +1378,60 @@ onMounted(() => {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  padding: 7px 12px;
-  border-radius: 12px;
-  background: rgba(12, 16, 28, 0.35);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  padding: 8px 14px;
+  border: none;
+  background: none;
+  isolation: isolate;
+  clip-path: polygon(
+    9px 0,
+    calc(100% - 9px) 0,
+    100% 9px,
+    100% calc(100% - 9px),
+    calc(100% - 9px) 100%,
+    9px 100%,
+    0 calc(100% - 9px),
+    0 9px
+  );
   color: #d7def5;
   font-size: 12px;
   cursor: pointer;
   transition:
     opacity 0.35s ease,
-    transform 0.35s ease,
-    background 0.15s ease;
+    transform 0.35s ease;
 }
-.list-toggle:hover,
-.list-toggle:focus-visible {
-  background: rgba(255, 255, 255, 0.1);
+.list-toggle::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  background: rgba(170, 221, 255, 0.4);
+}
+.list-toggle::after {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  z-index: -1;
+  background: rgba(12, 16, 28, 0.55);
+  clip-path: polygon(
+    9px 0,
+    calc(100% - 9px) 0,
+    100% 9px,
+    100% calc(100% - 9px),
+    calc(100% - 9px) 100%,
+    9px 100%,
+    0 calc(100% - 9px),
+    0 9px
+  );
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  transition: background 0.15s ease;
+}
+.list-toggle:hover::after,
+.list-toggle:focus-visible::after {
+  background: rgba(136, 204, 255, 0.18);
+}
+.list-toggle:focus-visible::before {
+  background: rgba(170, 221, 255, 0.9);
 }
 .list-toggle--hidden {
   opacity: 0;
@@ -1400,26 +1447,126 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   width: min(290px, calc(100vw - 32px));
-  border-radius: 16px;
-  background: rgba(12, 16, 28, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  border: none;
+  background: none;
+  isolation: isolate;
+  clip-path: polygon(
+    18px 0,
+    calc(100% - 18px) 0,
+    100% 18px,
+    100% calc(100% - 18px),
+    calc(100% - 18px) 100%,
+    18px 100%,
+    0 calc(100% - 18px),
+    0 18px
+  );
   color: #eef2ff;
   overflow: hidden;
+}
+.post-list::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  background: rgba(170, 221, 255, 0.4);
+}
+.post-list::after {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  z-index: -1;
+  background: rgba(11, 17, 30, 0.72);
+  clip-path: polygon(
+    18px 0,
+    calc(100% - 18px) 0,
+    100% 18px,
+    100% calc(100% - 18px),
+    calc(100% - 18px) 100%,
+    18px 100%,
+    0 calc(100% - 18px),
+    0 18px
+  );
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  /* The plates' faint additive fill, as a whisper of inner glow. */
+  box-shadow: inset 0 0 30px rgba(136, 204, 255, 0.07);
+}
+.post-list__search {
+  flex: none;
+  position: relative;
+  isolation: isolate;
+  margin: 14px 14px 0;
+  clip-path: polygon(
+    7px 0,
+    calc(100% - 7px) 0,
+    100% 7px,
+    100% calc(100% - 7px),
+    calc(100% - 7px) 100%,
+    7px 100%,
+    0 calc(100% - 7px),
+    0 7px
+  );
+}
+.post-list__search::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  background: rgba(170, 221, 255, 0.35);
+  transition: background 0.15s ease;
+}
+.post-list__search::after {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  z-index: -1;
+  background: rgba(9, 14, 25, 0.7);
+  clip-path: polygon(
+    7px 0,
+    calc(100% - 7px) 0,
+    100% 7px,
+    100% calc(100% - 7px),
+    calc(100% - 7px) 100%,
+    7px 100%,
+    0 calc(100% - 7px),
+    0 7px
+  );
+}
+.post-list__search:focus-within::before {
+  background: rgba(138, 180, 255, 0.8);
+}
+.post-list__search-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 12px;
+  border: none;
+  background: none;
+  color: #eef2ff;
+  font-size: 13px;
+  outline: none;
+}
+.post-list__search-input::placeholder {
+  color: rgba(215, 222, 245, 0.55);
 }
 .post-list__count {
   flex: none;
   margin: 0;
-  padding: 12px 16px 8px;
+  padding: 10px 16px 8px;
   font-size: 11px;
   letter-spacing: 0.08em;
   color: #aab4d4;
 }
+.post-list__empty {
+  margin: 0;
+  padding: 4px 16px 14px;
+  color: #aab4d4;
+  font-size: 12px;
+}
 .post-list__items {
   flex: 1;
   margin: 0;
-  padding: 0 8px 8px;
+  /* Extra bottom room keeps the last entry clear of the chamfered corners. */
+  padding: 0 10px 16px;
   list-style: none;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -1487,93 +1634,6 @@ onMounted(() => {
     top: calc(clamp(14px, 3vw, 24px) + 44px);
     bottom: calc(clamp(58px, 14vw, 76px) + 46px);
   }
-}
-
-/* --- Search Galaxy -------------------------------------------------------- */
-.search {
-  position: fixed;
-  top: clamp(14px, 3vw, 24px);
-  right: clamp(14px, 3vw, 28px);
-  z-index: 20;
-  width: min(260px, calc(100vw - 32px));
-  transition:
-    opacity 0.35s ease,
-    transform 0.35s ease;
-}
-.search--hidden {
-  opacity: 0;
-  transform: translateY(-8px);
-  pointer-events: none;
-}
-.search__input {
-  width: 100%;
-  box-sizing: border-box;
-  padding: 9px 14px;
-  border-radius: 12px;
-  background: rgba(12, 16, 28, 0.45);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  color: #eef2ff;
-  font-size: 13px;
-  outline: none;
-}
-.search__input::placeholder {
-  color: rgba(215, 222, 245, 0.55);
-}
-.search__input:focus {
-  border-color: rgba(138, 180, 255, 0.6);
-}
-.search__results,
-.search__empty {
-  margin: 8px 0 0;
-  padding: 6px;
-  list-style: none;
-  border-radius: 12px;
-  background: rgba(12, 16, 28, 0.75);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-}
-.search__empty {
-  padding: 10px 12px;
-  color: #aab4d4;
-  font-size: 12px;
-}
-.search__result {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 8px 10px;
-  border: none;
-  border-radius: 8px;
-  background: none;
-  color: #eef2ff;
-  font-size: 13px;
-  text-align: left;
-  cursor: pointer;
-}
-.search__result:hover,
-.search__result:focus-visible {
-  background: rgba(255, 255, 255, 0.08);
-}
-.search__dot {
-  flex: none;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-}
-.search__result-title {
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.search__result-date {
-  flex: none;
-  font-size: 11px;
-  opacity: 0.55;
 }
 
 /* --- Category legend ----------------------------------------------------- */
@@ -1982,7 +2042,6 @@ onMounted(() => {
   .list-slide-enter-active,
   .list-slide-leave-active,
   .legend,
-  .search,
   .list-toggle {
     transition-duration: 0.01s;
     transition-delay: 0s;
