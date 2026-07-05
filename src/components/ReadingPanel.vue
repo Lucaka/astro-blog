@@ -17,6 +17,23 @@ const emit = defineEmits<{
   (e: "close"): void;
 }>();
 
+// The card's chrome is long enough to bury the <article> tag in the template,
+// so it lives here grouped by concern instead of as one flat class string.
+// Note: a plain const isn't auto-sorted by prettier-plugin-tailwindcss (it
+// only reorders `class` attributes), so this grouping is maintained by hand —
+// that's the point, for a string this size hand-grouping reads better than a
+// single sorted line.
+const panelClass = [
+  // Desktop: a glass card docked to the right edge.
+  "reading-panel relative max-h-[84vh] w-[min(440px,92vw)] overflow-y-auto",
+  "rounded-[20px] border border-white/12 bg-[#0e121e]/45 px-[30px] py-8",
+  "text-ink shadow-[0_8px_40px_rgba(0,0,0,0.25)] backdrop-blur-lg focus:outline-none",
+  // Mobile: a full-screen sheet, more opaque so text stays readable directly
+  // over the bright bloom ring.
+  "max-sm:h-dvh max-sm:max-h-none max-sm:w-screen max-sm:rounded-none max-sm:border-x-0",
+  "max-sm:bg-[#0a0d16]/72 max-sm:px-[22px] max-sm:pt-7 max-sm:pb-10",
+].join(" ");
+
 // --- Modal accessibility: focus management + trap + Esc --------------------
 const panelEl = ref<HTMLElement | null>(null);
 let lastFocused: HTMLElement | null = null;
@@ -69,12 +86,9 @@ function handlePanelKeydown(event: KeyboardEvent) {
       @click.self="emit('close')"
       @keydown="handlePanelKeydown"
     >
-      <!-- Mobile (max-sm): a full-screen sheet, more opaque than the desktop
-           card — full-screen text sits directly over the bright bloom ring,
-           so readability wins over the glass effect. -->
       <article
         ref="panelEl"
-        class="reading-panel relative max-h-[84vh] w-[min(440px,92vw)] overflow-y-auto rounded-[20px] border border-white/12 bg-[#0e121e]/45 px-[30px] py-8 text-ink shadow-[0_8px_40px_rgba(0,0,0,0.25)] backdrop-blur-lg focus:outline-none max-sm:h-dvh max-sm:max-h-none max-sm:w-screen max-sm:rounded-none max-sm:border-x-0 max-sm:bg-[#0a0d16]/72 max-sm:px-[22px] max-sm:pt-7 max-sm:pb-10"
+        :class="panelClass"
         role="dialog"
         aria-modal="true"
         :aria-label="post.title"

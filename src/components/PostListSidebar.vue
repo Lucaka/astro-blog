@@ -110,7 +110,10 @@ watch(listVisible, (visible) => {
         >
         <template v-else>共 {{ posts.length }} 篇</template>
       </p>
-      <p v-if="!filteredPosts.length" class="m-0 px-4 pt-1 pb-3.5 text-xs text-ink-dim">
+      <p
+        v-if="!filteredPosts.length"
+        class="m-0 px-4 pt-1 pb-3.5 text-xs text-ink-dim"
+      >
         沒有符合的星星
       </p>
       <!-- Extra bottom padding keeps the last entry clear of the chamfered

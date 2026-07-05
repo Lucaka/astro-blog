@@ -15,7 +15,9 @@ defineProps<{
       aria-hidden="true"
     >
       <span>繼續滾動 → 前往星系群</span>
-      <span class="block h-[3px] w-[150px] overflow-hidden rounded-full bg-white/15">
+      <span
+        class="block h-[3px] w-[150px] overflow-hidden rounded-full bg-white/15"
+      >
         <span
           class="block h-full rounded-full bg-accent"
           :style="{ width: progress * 100 + '%' }"

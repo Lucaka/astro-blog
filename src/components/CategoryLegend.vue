@@ -38,7 +38,10 @@ const legend = (Object.keys(CATEGORY_META) as PostCategory[]).map((c) => ({
       :aria-pressed="active.has(item.category)"
       @click="$emit('toggle', item.category)"
     >
-      <span class="size-2 rounded-full" :style="{ background: item.color }"></span>
+      <span
+        class="size-2 rounded-full"
+        :style="{ background: item.color }"
+      ></span>
       {{ item.label }}
     </button>
   </div>

@@ -12,7 +12,7 @@ defineProps<{
 
 <template>
   <div
-    class="pointer-events-none fixed z-20 min-w-[120px] -translate-x-1/2 translate-y-[calc(-100%_-_18px)] whitespace-nowrap rounded-[10px] border border-white/14 bg-[#0c101c]/55 px-3 py-2 text-ink backdrop-blur-[6px]"
+    class="pointer-events-none fixed z-20 min-w-[120px] -translate-x-1/2 translate-y-[calc(-100%_-_18px)] rounded-[10px] border border-white/14 bg-[#0c101c]/55 px-3 py-2 whitespace-nowrap text-ink backdrop-blur-[6px]"
     :style="position"
   >
     <div class="text-[13px] font-semibold">{{ title }}</div>
