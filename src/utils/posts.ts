@@ -34,6 +34,11 @@ export function byDateDesc(
   return parseDisplayDate(b.data.date).getTime() - parseDisplayDate(a.data.date).getTime();
 }
 
+/** "2025.04 · 約 5 分鐘" meta line shown in tooltips, the sidebar and panel. */
+export function postMeta(post: { date: string; minutes?: number }): string {
+  return post.minutes ? `${post.date} · 約 ${post.minutes} 分鐘` : post.date;
+}
+
 /** Site-relative path of a post page, respecting the configured base. */
 export function postPath(slug: string): string {
   const base = import.meta.env.BASE_URL.replace(/\/$/, "");

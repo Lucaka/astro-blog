@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { onBeforeUnmount, onMounted, ref, watch } from "vue";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
@@ -21,12 +21,21 @@ import { createTidalDebris } from "../three/blackhole/tidalDebris";
 import { createContentStars } from "../three/blackhole/contentStars";
 import { createGalaxyImpostors } from "../three/blackhole/galaxyImpostors";
 import { CATEGORY_META, type Post, type PostCategory } from "../data/posts";
-import { postPath } from "../utils/posts";
+import { postMeta, postPath } from "../utils/posts";
 import {
   partitionIntoGalaxies,
   findGalaxyOf,
   type Galaxy,
 } from "../utils/galaxies";
+
+import UniverseBreadcrumb from "./UniverseBreadcrumb.vue";
+import PostListSidebar from "./PostListSidebar.vue";
+import CategoryLegend from "./CategoryLegend.vue";
+import HintToast from "./HintToast.vue";
+import ExitChargePill from "./ExitChargePill.vue";
+import InfoGuide from "./InfoGuide.vue";
+import StarTooltip from "./StarTooltip.vue";
+import ReadingPanel from "./ReadingPanel.vue";
 
 // Post metadata comes from the Markdown content collection via index.astro.
 const props = defineProps<{ posts: Post[] }>();
@@ -77,16 +86,6 @@ const hoveredGalaxy = ref<Galaxy | null>(null);
 const nearExitWall = ref(false);
 const exitProgress = ref(0);
 
-// "?" corner button -> controls guide panel.
-const showInfo = ref(false);
-const infoPanelEl = ref<HTMLElement | null>(null);
-watch(showInfo, async (open) => {
-  if (open) {
-    await nextTick();
-    infoPanelEl.value?.focus();
-  }
-});
-
 const container = ref<HTMLDivElement | null>(null);
 
 // --- UI state (bound by the template) ------------------------------------
@@ -97,43 +96,9 @@ const hoverStyle = ref<{ left: string; top: string } | null>(null);
 // server-rendered Markdown body (read from the hidden node by slug).
 const selectedPost = ref<Post | null>(null);
 const selectedHtml = ref("");
-const panelEl = ref<HTMLElement | null>(null);
 
 // Legend filter: empty set = show every category.
 const activeCategories = ref<Set<PostCategory>>(new Set());
-
-// Sidebar search: the query filters the article list in place. Matches span
-// every galaxy; picking one flies the camera there (switching volumes first
-// when needed) and opens the article on arrival.
-const searchQuery = ref("");
-const searching = computed(() => searchQuery.value.trim().length > 0);
-const filteredPosts = computed(() => {
-  const q = searchQuery.value.trim().toLowerCase();
-  if (!q) return allPosts;
-  return allPosts.filter(
-    (p) =>
-      p.title.toLowerCase().includes(q) ||
-      p.summary.toLowerCase().includes(q) ||
-      p.tags.some((t) => t.toLowerCase().includes(q)) ||
-      catLabel(p.category).toLowerCase().includes(q),
-  );
-});
-
-// Sidebar article list: a plain, blog-style index of every post. Open/closed
-// state is remembered across visits; hovering an entry highlights its star.
-const showList = ref(false);
-const LIST_KEY = "universe-list-open";
-const listVisible = computed(
-  () => showList.value && !selectedPost.value && viewMode.value === "galaxy",
-);
-function toggleList() {
-  showList.value = !showList.value;
-  try {
-    localStorage.setItem(LIST_KEY, showList.value ? "1" : "0");
-  } catch {
-    /* private mode: the list just won't remember */
-  }
-}
 
 // First-visit hint, shown once then remembered in localStorage.
 const showHint = ref(false);
@@ -157,33 +122,10 @@ function openFromList(post: Post) {
   highlightStar(null);
   flyToPostAndOpen(post);
 }
-function onSearchEnter() {
-  const first = searching.value ? filteredPosts.value[0] : undefined;
-  if (first) openFromList(first);
-}
-// The panel can disappear out from under the cursor (opening a post, leaving
-// the galaxy view), so mouseleave alone can't be trusted to clean up.
-watch(listVisible, (visible) => {
-  if (!visible) highlightStar(null);
-});
 
 // Breadcrumb "星系群" crumb: zoom out to the group view.
 function openGroupView() {
   requestGroupView();
-}
-
-// Category legend entries for the corner key.
-const legend = (Object.keys(CATEGORY_META) as PostCategory[]).map((c) => ({
-  category: c,
-  label: CATEGORY_META[c].label,
-  color: catColor(c),
-}));
-
-function catColor(category: PostCategory): string {
-  return "#" + CATEGORY_META[category].color.toString(16).padStart(6, "0");
-}
-function catLabel(category: PostCategory): string {
-  return CATEGORY_META[category].label;
 }
 
 // --- Deep links: modal state lives in the URL ------------------------------
@@ -228,57 +170,11 @@ function toggleCategory(category: PostCategory) {
   applyFilter(next);
 }
 
-// --- Modal accessibility: focus management + trap + Esc --------------------
-let lastFocused: HTMLElement | null = null;
-watch(selectedPost, async (post) => {
-  if (post) {
-    lastFocused =
-      document.activeElement instanceof HTMLElement
-        ? document.activeElement
-        : null;
-    await nextTick();
-    panelEl.value?.focus();
-  } else if (lastFocused) {
-    lastFocused.focus();
-    lastFocused = null;
-  }
-});
-
-function handlePanelKeydown(event: KeyboardEvent) {
-  if (event.key === "Escape") {
-    event.preventDefault();
-    closeModal();
-    return;
-  }
-  if (event.key !== "Tab" || !panelEl.value) return;
-  const focusables = panelEl.value.querySelectorAll<HTMLElement>(
-    'button, a[href], [tabindex]:not([tabindex="-1"])',
-  );
-  if (focusables.length === 0) return;
-  const first = focusables[0];
-  const last = focusables[focusables.length - 1];
-  const active = document.activeElement;
-  if (event.shiftKey && (active === first || active === panelEl.value)) {
-    event.preventDefault();
-    last.focus();
-  } else if (!event.shiftKey && active === last) {
-    event.preventDefault();
-    first.focus();
-  }
-}
-
 onMounted(() => {
   const el = container.value;
   if (!el) return;
 
   window.addEventListener("popstate", handlePopstate);
-
-  // Restore the sidebar's remembered open/closed state.
-  try {
-    showList.value = localStorage.getItem(LIST_KEY) === "1";
-  } catch {
-    /* private mode: default to closed */
-  }
 
   // First-visit hint: fade in once, dismissed by time or first interaction.
   let hintTimer = 0;
@@ -995,290 +891,60 @@ onMounted(() => {
     <div ref="container" class="black-hole-canvas"></div>
 
     <!-- Where am I: 星系群 › 星系 breadcrumb; the group crumb zooms out. -->
-    <nav
-      class="breadcrumb"
-      :class="{ 'breadcrumb--hidden': selectedPost }"
-      aria-label="宇宙層級"
-    >
-      <button
-        type="button"
-        class="breadcrumb__link"
-        :disabled="viewMode !== 'galaxy'"
-        @click="openGroupView"
-      >
-        星系群
-      </button>
-      <template v-if="viewMode === 'galaxy' || viewMode === 'toGalaxy'">
-        <span class="breadcrumb__sep" aria-hidden="true">›</span>
-        <span class="breadcrumb__current"
-          >{{ activeGalaxy.name }} · {{ activeGalaxy.era }}</span
-        >
-      </template>
-    </nav>
+    <UniverseBreadcrumb
+      :view-mode="viewMode"
+      :active-galaxy="activeGalaxy"
+      :hidden="!!selectedPost"
+      @open-group="openGroupView"
+    />
 
     <!-- Article list sidebar: a normal blog-style index for quick browsing.
          Hovering an entry highlights its star; clicking opens the post. -->
-    <button
-      type="button"
-      class="list-toggle"
-      :class="{
-        'list-toggle--hidden': selectedPost || viewMode !== 'galaxy',
-      }"
-      :aria-expanded="showList"
-      aria-controls="post-list-panel"
-      @click="toggleList"
-    >
-      <span aria-hidden="true">☰</span> 文章清單
-    </button>
-    <Transition name="list-slide">
-      <aside
-        v-if="listVisible"
-        id="post-list-panel"
-        class="post-list"
-        aria-label="文章清單"
-      >
-        <!-- Typing filters the list below in place; Enter picks the first
-             match. Cross-galaxy matches are included — clicking one dives
-             into its galaxy on the way to the star. -->
-        <div class="post-list__search">
-          <input
-            v-model="searchQuery"
-            class="post-list__search-input"
-            type="search"
-            placeholder="搜尋星系…"
-            aria-label="搜尋文章"
-            @keydown.enter.prevent="onSearchEnter"
-            @keydown.escape="searchQuery = ''"
-          />
-        </div>
-        <p class="post-list__count" role="status">
-          <template v-if="searching"
-            >符合 {{ filteredPosts.length }} / {{ allPosts.length }} 篇</template
-          >
-          <template v-else>共 {{ allPosts.length }} 篇</template>
-        </p>
-        <p v-if="!filteredPosts.length" class="post-list__empty">
-          沒有符合的星星
-        </p>
-        <ul v-else class="post-list__items">
-          <li v-for="post in filteredPosts" :key="post.slug">
-            <button
-              type="button"
-              class="post-list__item"
-              @mouseenter="hoverListPost(post.slug)"
-              @mouseleave="hoverListPost(null)"
-              @focus="hoverListPost(post.slug)"
-              @blur="hoverListPost(null)"
-              @click="openFromList(post)"
-            >
-              <span
-                class="post-list__dot"
-                :style="{ background: catColor(post.category) }"
-              ></span>
-              <span class="post-list__text">
-                <span class="post-list__title">{{ post.title }}</span>
-                <span class="post-list__meta">
-                  {{ post.date
-                  }}<template v-if="post.minutes">
-                    · 約 {{ post.minutes }} 分鐘</template
-                  >
-                </span>
-              </span>
-            </button>
-          </li>
-        </ul>
-      </aside>
-    </Transition>
+    <PostListSidebar
+      :posts="allPosts"
+      :active="!selectedPost && viewMode === 'galaxy'"
+      @hover="hoverListPost"
+      @open="openFromList"
+    />
 
     <!-- Category legend: click a category to spotlight only its stars. -->
-    <div
-      class="legend"
-      :class="{ 'legend--hidden': selectedPost || viewMode !== 'galaxy' }"
-    >
-      <button
-        v-for="item in legend"
-        :key="item.category"
-        type="button"
-        class="legend__item"
-        :class="{
-          'legend__item--muted':
-            activeCategories.size > 0 && !activeCategories.has(item.category),
-        }"
-        :aria-pressed="activeCategories.has(item.category)"
-        @click="toggleCategory(item.category)"
-      >
-        <span class="legend__dot" :style="{ background: item.color }"></span>
-        {{ item.label }}
-      </button>
-    </div>
+    <CategoryLegend
+      :active="activeCategories"
+      :hidden="!!selectedPost || viewMode !== 'galaxy'"
+      @toggle="toggleCategory"
+    />
 
     <!-- First-visit hint: one quiet line, gone after a moment or a touch. -->
-    <Transition name="hint-fade">
-      <p v-if="showHint" class="hint" aria-hidden="true">
-        拖曳探索宇宙 · 點擊星星閱讀文章
-      </p>
-    </Transition>
+    <HintToast :show="showHint">拖曳探索宇宙 · 點擊星星閱讀文章</HintToast>
 
     <!-- Group view hint: how to get back into a galaxy. -->
-    <Transition name="hint-fade">
-      <p v-if="viewMode === 'group'" class="hint" aria-hidden="true">
-        點擊星系進入 · 滾輪放大返回
-      </p>
-    </Transition>
+    <HintToast :show="viewMode === 'group'">點擊星系進入 · 滾輪放大返回</HintToast>
 
     <!-- Exit pill: parked at the zoom wall — keep scrolling to leave. -->
-    <Transition name="charge-fade">
-      <div v-if="nearExitWall" class="exit-charge" aria-hidden="true">
-        <span>繼續滾動 → 前往星系群</span>
-        <span class="exit-charge__bar">
-          <span
-            class="exit-charge__fill"
-            :style="{ width: exitProgress * 100 + '%' }"
-          ></span>
-        </span>
-      </div>
-    </Transition>
+    <ExitChargePill :visible="nearExitWall" :progress="exitProgress" />
 
-    <!-- Corner "?": opens the controls guide. -->
-    <button
-      v-if="!selectedPost"
-      type="button"
-      class="info-button"
-      aria-label="操作指南"
-      @click="showInfo = true"
-    >
-      ?
-    </button>
-
-    <!-- Controls guide panel. -->
-    <Transition name="panel-fade">
-      <div
-        v-if="showInfo"
-        class="reading-scrim info-scrim"
-        @click.self="showInfo = false"
-        @keydown.escape.prevent="showInfo = false"
-      >
-        <section
-          ref="infoPanelEl"
-          class="reading-panel info-panel"
-          role="dialog"
-          aria-modal="true"
-          aria-label="操作指南"
-          tabindex="-1"
-        >
-          <button
-            class="reading-panel__close"
-            aria-label="關閉操作指南"
-            @click="showInfo = false"
-          >
-            ×
-          </button>
-          <h2 class="info-panel__title">操作指南</h2>
-          <ul class="info-panel__list">
-            <li><strong>拖曳</strong>旋轉視角，<strong>滾輪 / 雙指</strong>縮放</li>
-            <li><strong>點擊星星</strong>閱讀文章，游標懸停可預覽</li>
-            <li><strong>左下圖例</strong>篩選分類</li>
-            <li>
-              左上<strong>文章清單</strong>可瀏覽並<strong>搜尋</strong>全部文章，懸停點亮對應的星星，點擊即飛往該星並開啟文章
-            </li>
-            <li v-if="galaxies.length > 1">
-              <strong>縮小到底後繼續滾動</strong>離開星系、綜覽星系群；點擊星系或滾輪放大即可返回
-            </li>
-            <li>左上<strong>星系群</strong>麵包屑隨時可切換視角</li>
-          </ul>
-        </section>
-      </div>
-    </Transition>
+    <!-- Corner "?" button + controls guide panel. -->
+    <InfoGuide :hidden="!!selectedPost" :multi-galaxy="galaxies.length > 1" />
 
     <!-- Hover tooltip: minimal card floated above the focused star. -->
-    <div
+    <StarTooltip
       v-if="hoveredPost && !selectedPost && hoverStyle"
-      class="star-tooltip"
-      :style="hoverStyle"
-    >
-      <div class="star-tooltip__title">{{ hoveredPost.title }}</div>
-      <div class="star-tooltip__date">
-        {{ hoveredPost.date
-        }}<template v-if="hoveredPost.minutes">
-          · 約 {{ hoveredPost.minutes }} 分鐘</template
-        >
-      </div>
-      <div class="star-tooltip__tags">
-        <span
-          v-for="tag in hoveredPost.tags"
-          :key="tag"
-          class="star-tooltip__tag"
-          >{{ tag }}</span
-        >
-      </div>
-    </div>
+      :position="hoverStyle"
+      :title="hoveredPost.title"
+      :meta="postMeta(hoveredPost)"
+      :tags="hoveredPost.tags"
+    />
 
     <!-- Hover tooltip for a galaxy impostor in the group view. -->
-    <div
+    <StarTooltip
       v-if="hoveredGalaxy && hoverStyle && viewMode === 'group'"
-      class="star-tooltip"
-      :style="hoverStyle"
-    >
-      <div class="star-tooltip__title">{{ hoveredGalaxy.name }}</div>
-      <div class="star-tooltip__date">
-        {{ hoveredGalaxy.era }} · {{ hoveredGalaxy.posts.length }} 篇文章
-      </div>
-    </div>
+      :position="hoverStyle"
+      :title="hoveredGalaxy.name"
+      :meta="`${hoveredGalaxy.era} · ${hoveredGalaxy.posts.length} 篇文章`"
+    />
 
     <!-- Reading panel: glassmorphism card shown when a post is open. -->
-    <Transition name="panel-fade">
-      <div
-        v-if="selectedPost"
-        class="reading-scrim"
-        @click.self="closeModal"
-        @keydown="handlePanelKeydown"
-      >
-        <article
-          ref="panelEl"
-          class="reading-panel"
-          role="dialog"
-          aria-modal="true"
-          :aria-label="selectedPost.title"
-          tabindex="-1"
-        >
-          <button class="reading-panel__close" aria-label="關閉文章" @click="closeModal">
-            ×
-          </button>
-          <div
-            class="reading-panel__category"
-            :style="{ color: catColor(selectedPost.category) }"
-          >
-            <span
-              class="reading-panel__dot"
-              :style="{ background: catColor(selectedPost.category) }"
-            ></span>
-            {{ catLabel(selectedPost.category) }}
-          </div>
-          <h2 class="reading-panel__title">{{ selectedPost.title }}</h2>
-          <div class="reading-panel__meta">
-            {{ selectedPost.date
-            }}<template v-if="selectedPost.minutes">
-              · 約 {{ selectedPost.minutes }} 分鐘</template
-            >
-            ·
-            <a class="reading-panel__permalink" :href="postPath(selectedPost.slug)"
-              >單篇頁面 ↗</a
-            >
-          </div>
-          <div class="reading-panel__tags">
-            <span
-              v-for="tag in selectedPost.tags"
-              :key="tag"
-              class="reading-panel__tag"
-              >{{ tag }}</span
-            >
-          </div>
-          <p class="reading-panel__summary">{{ selectedPost.summary }}</p>
-          <!-- Rendered Markdown from the content collection. -->
-          <div class="reading-panel__body" v-html="selectedHtml"></div>
-        </article>
-      </div>
-    </Transition>
+    <ReadingPanel :post="selectedPost" :html="selectedHtml" @close="closeModal" />
   </div>
 </template>
 
@@ -1301,776 +967,5 @@ onMounted(() => {
 
 .black-hole-canvas :deep(canvas) {
   display: block;
-}
-
-/* --- Breadcrumb: 星系群 › 星系 --------------------------------------------- */
-.breadcrumb {
-  position: fixed;
-  top: clamp(14px, 3vw, 24px);
-  left: clamp(16px, 3vw, 32px);
-  z-index: 20;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
-  border-radius: 12px;
-  background: rgba(12, 16, 28, 0.35);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  color: #d7def5;
-  font-size: 12px;
-  transition:
-    opacity 0.35s ease,
-    transform 0.35s ease;
-}
-.breadcrumb--hidden {
-  opacity: 0;
-  transform: translateY(-8px);
-  pointer-events: none;
-}
-.breadcrumb__link {
-  border: none;
-  background: none;
-  color: #8ab4ff;
-  font: inherit;
-  padding: 2px 6px;
-  border-radius: 6px;
-  cursor: pointer;
-}
-.breadcrumb__link:disabled {
-  color: inherit;
-  opacity: 0.75;
-  cursor: default;
-}
-.breadcrumb__link:not(:disabled):hover,
-.breadcrumb__link:not(:disabled):focus-visible {
-  background: rgba(255, 255, 255, 0.08);
-}
-.breadcrumb__sep {
-  opacity: 0.5;
-}
-.breadcrumb__current {
-  opacity: 0.9;
-}
-
-/* Mobile: the list toggle owns the top-left corner; tuck the breadcrumb just
-   above the legend instead so they never overlap. */
-@media (max-width: 640px) {
-  .breadcrumb {
-    top: auto;
-    bottom: clamp(58px, 14vw, 76px);
-  }
-}
-
-/* --- Article list sidebar: a Dyson plate ----------------------------------
-   The chamfered octagon + pale-blue wireframe echoes the Dyson plates
-   orbiting the black hole (three/blackhole/dysonSphere.ts): a faint #88ccff
-   fill behind a brighter #aaddff border. clip-path would cut away a real CSS
-   border, so the outline is layered instead: the element clips to the
-   octagon, ::before paints the line color edge-to-edge, and ::after paints
-   the fill inset 1px with the same octagon — leaving a 1px lit rim. */
-.list-toggle {
-  position: fixed;
-  top: calc(clamp(14px, 3vw, 24px) + 42px);
-  left: clamp(16px, 3vw, 32px);
-  z-index: 20;
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 8px 14px;
-  border: none;
-  background: none;
-  isolation: isolate;
-  clip-path: polygon(
-    9px 0,
-    calc(100% - 9px) 0,
-    100% 9px,
-    100% calc(100% - 9px),
-    calc(100% - 9px) 100%,
-    9px 100%,
-    0 calc(100% - 9px),
-    0 9px
-  );
-  color: #d7def5;
-  font-size: 12px;
-  cursor: pointer;
-  transition:
-    opacity 0.35s ease,
-    transform 0.35s ease;
-}
-.list-toggle::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -2;
-  background: rgba(170, 221, 255, 0.4);
-}
-.list-toggle::after {
-  content: "";
-  position: absolute;
-  inset: 1px;
-  z-index: -1;
-  background: rgba(12, 16, 28, 0.55);
-  clip-path: polygon(
-    9px 0,
-    calc(100% - 9px) 0,
-    100% 9px,
-    100% calc(100% - 9px),
-    calc(100% - 9px) 100%,
-    9px 100%,
-    0 calc(100% - 9px),
-    0 9px
-  );
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  transition: background 0.15s ease;
-}
-.list-toggle:hover::after,
-.list-toggle:focus-visible::after {
-  background: rgba(136, 204, 255, 0.18);
-}
-.list-toggle:focus-visible::before {
-  background: rgba(170, 221, 255, 0.9);
-}
-.list-toggle--hidden {
-  opacity: 0;
-  transform: translateY(-8px);
-  pointer-events: none;
-}
-.post-list {
-  position: fixed;
-  top: calc(clamp(14px, 3vw, 24px) + 84px);
-  left: clamp(16px, 3vw, 32px);
-  bottom: clamp(64px, 10vh, 96px);
-  z-index: 20;
-  display: flex;
-  flex-direction: column;
-  width: min(290px, calc(100vw - 32px));
-  border: none;
-  background: none;
-  isolation: isolate;
-  clip-path: polygon(
-    18px 0,
-    calc(100% - 18px) 0,
-    100% 18px,
-    100% calc(100% - 18px),
-    calc(100% - 18px) 100%,
-    18px 100%,
-    0 calc(100% - 18px),
-    0 18px
-  );
-  color: #eef2ff;
-  overflow: hidden;
-}
-.post-list::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -2;
-  background: rgba(170, 221, 255, 0.4);
-}
-.post-list::after {
-  content: "";
-  position: absolute;
-  inset: 1px;
-  z-index: -1;
-  background: rgba(11, 17, 30, 0.72);
-  clip-path: polygon(
-    18px 0,
-    calc(100% - 18px) 0,
-    100% 18px,
-    100% calc(100% - 18px),
-    calc(100% - 18px) 100%,
-    18px 100%,
-    0 calc(100% - 18px),
-    0 18px
-  );
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  /* The plates' faint additive fill, as a whisper of inner glow. */
-  box-shadow: inset 0 0 30px rgba(136, 204, 255, 0.07);
-}
-.post-list__search {
-  flex: none;
-  position: relative;
-  isolation: isolate;
-  margin: 14px 14px 0;
-  clip-path: polygon(
-    7px 0,
-    calc(100% - 7px) 0,
-    100% 7px,
-    100% calc(100% - 7px),
-    calc(100% - 7px) 100%,
-    7px 100%,
-    0 calc(100% - 7px),
-    0 7px
-  );
-}
-.post-list__search::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -2;
-  background: rgba(170, 221, 255, 0.35);
-  transition: background 0.15s ease;
-}
-.post-list__search::after {
-  content: "";
-  position: absolute;
-  inset: 1px;
-  z-index: -1;
-  background: rgba(9, 14, 25, 0.7);
-  clip-path: polygon(
-    7px 0,
-    calc(100% - 7px) 0,
-    100% 7px,
-    100% calc(100% - 7px),
-    calc(100% - 7px) 100%,
-    7px 100%,
-    0 calc(100% - 7px),
-    0 7px
-  );
-}
-.post-list__search:focus-within::before {
-  background: rgba(138, 180, 255, 0.8);
-}
-.post-list__search-input {
-  width: 100%;
-  box-sizing: border-box;
-  padding: 8px 12px;
-  border: none;
-  background: none;
-  color: #eef2ff;
-  font-size: 13px;
-  outline: none;
-}
-.post-list__search-input::placeholder {
-  color: rgba(215, 222, 245, 0.55);
-}
-.post-list__count {
-  flex: none;
-  margin: 0;
-  padding: 10px 16px 8px;
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  color: #aab4d4;
-}
-.post-list__empty {
-  margin: 0;
-  padding: 4px 16px 14px;
-  color: #aab4d4;
-  font-size: 12px;
-}
-.post-list__items {
-  flex: 1;
-  margin: 0;
-  /* Extra bottom room keeps the last entry clear of the chamfered corners. */
-  padding: 0 10px 16px;
-  list-style: none;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-}
-.post-list__item {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  width: 100%;
-  padding: 9px 10px;
-  border: none;
-  border-radius: 10px;
-  background: none;
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-  transition: background 0.15s ease;
-}
-.post-list__item:hover,
-.post-list__item:focus-visible {
-  background: rgba(255, 255, 255, 0.08);
-}
-.post-list__dot {
-  flex: none;
-  width: 8px;
-  height: 8px;
-  margin-top: 5px;
-  border-radius: 50%;
-}
-.post-list__text {
-  min-width: 0;
-}
-.post-list__title {
-  display: block;
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 1.45;
-}
-.post-list__meta {
-  display: block;
-  margin-top: 2px;
-  font-size: 11px;
-  opacity: 0.6;
-}
-.list-slide-enter-active,
-.list-slide-leave-active {
-  transition:
-    opacity 0.35s ease,
-    transform 0.35s ease;
-}
-.list-slide-enter-from,
-.list-slide-leave-to {
-  opacity: 0;
-  transform: translateX(-14px);
-}
-
-/* Mobile: the breadcrumb lives at the bottom, so the toggle takes the top-left
-   corner; the panel stops above the breadcrumb + legend stack. */
-@media (max-width: 640px) {
-  .list-toggle {
-    top: clamp(14px, 3vw, 24px);
-  }
-  .post-list {
-    top: calc(clamp(14px, 3vw, 24px) + 44px);
-    bottom: calc(clamp(58px, 14vw, 76px) + 46px);
-  }
-}
-
-/* --- Category legend ----------------------------------------------------- */
-.legend {
-  position: fixed;
-  left: clamp(16px, 3vw, 32px);
-  bottom: clamp(16px, 3vw, 28px);
-  z-index: 20;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  padding: 6px 8px;
-  border-radius: 12px;
-  background: rgba(12, 16, 28, 0.35);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  color: #d7def5;
-  font-size: 12px;
-  transition:
-    opacity 0.35s ease,
-    transform 0.35s ease;
-}
-.legend--hidden {
-  opacity: 0;
-  transform: translateY(8px);
-  pointer-events: none;
-}
-.legend__item {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 8px;
-  border: none;
-  border-radius: 8px;
-  background: none;
-  color: inherit;
-  font: inherit;
-  opacity: 0.85;
-  cursor: pointer;
-  transition:
-    opacity 0.25s ease,
-    background 0.15s ease;
-}
-.legend__item:hover,
-.legend__item:focus-visible {
-  background: rgba(255, 255, 255, 0.08);
-}
-.legend__item[aria-pressed="true"] {
-  background: rgba(255, 255, 255, 0.12);
-  opacity: 1;
-}
-.legend__item--muted {
-  opacity: 0.35;
-}
-.legend__dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-}
-
-/* --- First-visit hint ------------------------------------------------------ */
-.hint {
-  position: fixed;
-  left: 50%;
-  bottom: clamp(72px, 12vh, 120px);
-  transform: translateX(-50%);
-  z-index: 20;
-  margin: 0;
-  padding: 10px 18px;
-  border-radius: 999px;
-  background: rgba(12, 16, 28, 0.55);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  color: #d7def5;
-  font-size: 13px;
-  letter-spacing: 0.06em;
-  pointer-events: none;
-}
-.hint-fade-enter-active {
-  transition: opacity 1.2s ease 0.8s;
-}
-.hint-fade-leave-active {
-  transition: opacity 0.8s ease;
-}
-.hint-fade-enter-from,
-.hint-fade-leave-to {
-  opacity: 0;
-}
-
-/* --- Exit pill: overscroll-to-exit progress -------------------------------- */
-.exit-charge {
-  position: fixed;
-  left: 50%;
-  bottom: clamp(72px, 12vh, 120px);
-  transform: translateX(-50%);
-  z-index: 20;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 7px;
-  padding: 10px 18px;
-  border-radius: 16px;
-  background: rgba(12, 16, 28, 0.55);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  color: #d7def5;
-  font-size: 13px;
-  letter-spacing: 0.06em;
-  pointer-events: none;
-}
-.exit-charge__bar {
-  display: block;
-  width: 150px;
-  height: 3px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.15);
-  overflow: hidden;
-}
-.exit-charge__fill {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: #8ab4ff;
-}
-.charge-fade-enter-active,
-.charge-fade-leave-active {
-  transition: opacity 0.25s ease;
-}
-.charge-fade-enter-from,
-.charge-fade-leave-to {
-  opacity: 0;
-}
-
-/* --- "?" info button + controls guide ------------------------------------- */
-.info-button {
-  position: fixed;
-  right: clamp(16px, 3vw, 28px);
-  bottom: clamp(16px, 3vw, 28px);
-  z-index: 20;
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgba(12, 16, 28, 0.45);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  color: #d7def5;
-  font-size: 16px;
-  font-weight: 600;
-  line-height: 1;
-  cursor: pointer;
-  transition: background 0.15s ease;
-}
-.info-button:hover,
-.info-button:focus-visible {
-  background: rgba(255, 255, 255, 0.14);
-}
-/* Double selectors: these must beat the base .reading-scrim/.reading-panel
-   rules, which are declared later in this file. */
-.reading-scrim.info-scrim {
-  justify-content: center;
-  align-items: center;
-}
-.reading-panel.info-panel {
-  width: min(400px, 92vw);
-  max-height: 80vh;
-}
-.info-panel__title {
-  margin: 4px 0 16px;
-  font-size: 20px;
-  font-weight: 700;
-}
-.info-panel__list {
-  margin: 0;
-  padding-left: 18px;
-  font-size: 14px;
-  line-height: 1.9;
-  opacity: 0.9;
-}
-.info-panel__list li + li {
-  margin-top: 6px;
-}
-.info-panel__list strong {
-  color: #8ab4ff;
-  font-weight: 600;
-}
-
-/* --- Hover tooltip: minimal, translucent, follows the star --------------- */
-.star-tooltip {
-  position: fixed;
-  transform: translate(-50%, calc(-100% - 18px));
-  pointer-events: none;
-  padding: 8px 12px;
-  min-width: 120px;
-  border-radius: 10px;
-  background: rgba(12, 16, 28, 0.55);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  color: #eef2ff;
-  white-space: nowrap;
-  z-index: 20;
-}
-.star-tooltip__title {
-  font-size: 13px;
-  font-weight: 600;
-}
-.star-tooltip__date {
-  font-size: 11px;
-  opacity: 0.6;
-  margin-top: 2px;
-}
-.star-tooltip__tags {
-  margin-top: 6px;
-  display: flex;
-  gap: 5px;
-}
-.star-tooltip__tag {
-  font-size: 10px;
-  padding: 1px 6px;
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.08);
-  opacity: 0.85;
-}
-
-/* --- Reading panel: glassmorphism ---------------------------------------- */
-.reading-scrim {
-  position: fixed;
-  inset: 0;
-  z-index: 30;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  padding: clamp(16px, 4vw, 48px);
-}
-.reading-panel {
-  position: relative;
-  width: min(440px, 92vw);
-  max-height: 84vh;
-  overflow-y: auto;
-  padding: 32px 30px;
-  border-radius: 20px;
-  background: rgba(14, 18, 30, 0.45);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.25);
-  color: #eef2ff;
-}
-.reading-panel:focus {
-  outline: none;
-}
-.reading-panel__close {
-  position: absolute;
-  top: 14px;
-  right: 16px;
-  width: 32px;
-  height: 32px;
-  border: none;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.06);
-  color: #cdd6f4;
-  font-size: 20px;
-  line-height: 1;
-  cursor: pointer;
-  transition: background 0.15s ease;
-}
-.reading-panel__close:hover,
-.reading-panel__close:focus-visible {
-  background: rgba(255, 255, 255, 0.14);
-}
-.reading-panel__category {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-.reading-panel__dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-}
-.reading-panel__title {
-  margin: 12px 0 6px;
-  font-size: 26px;
-  font-weight: 700;
-  line-height: 1.2;
-}
-.reading-panel__meta {
-  font-size: 13px;
-  opacity: 0.75;
-}
-.reading-panel__permalink {
-  color: #8ab4ff;
-  text-decoration: none;
-}
-.reading-panel__permalink:hover,
-.reading-panel__permalink:focus-visible {
-  text-decoration: underline;
-}
-.reading-panel__tags {
-  margin: 16px 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 7px;
-}
-.reading-panel__tag {
-  font-size: 12px;
-  padding: 3px 10px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.07);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-.reading-panel__summary {
-  margin: 8px 0 16px;
-  font-size: 15px;
-  line-height: 1.6;
-  opacity: 0.92;
-}
-.reading-panel__body {
-  font-size: 14px;
-  line-height: 1.75;
-  opacity: 0.78;
-}
-/* Rendered Markdown (v-html) is unscoped, so reach it with :deep(). */
-.reading-panel__body :deep(p) {
-  margin: 0 0 12px;
-}
-.reading-panel__body :deep(strong) {
-  color: #fff;
-  font-weight: 600;
-}
-.reading-panel__body :deep(ul),
-.reading-panel__body :deep(ol) {
-  margin: 0 0 12px;
-  padding-left: 20px;
-}
-.reading-panel__body :deep(li) {
-  margin: 4px 0;
-}
-.reading-panel__body :deep(blockquote) {
-  margin: 12px 0;
-  padding: 6px 14px;
-  border-left: 2px solid rgba(255, 255, 255, 0.25);
-  opacity: 0.8;
-  font-style: italic;
-}
-.reading-panel__body :deep(a) {
-  color: #8ab4ff;
-}
-.reading-panel__body :deep(code) {
-  padding: 1px 5px;
-  border-radius: 5px;
-  background: rgba(255, 255, 255, 0.1);
-  font-size: 13px;
-}
-.reading-panel__body :deep(pre) {
-  padding: 14px 16px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  overflow-x: auto;
-  font-size: 13px;
-  line-height: 1.6;
-}
-.reading-panel__body :deep(pre code) {
-  padding: 0;
-  background: none;
-  font-size: inherit;
-}
-
-/* Panel fade/slide transition (slow, per the calm-motion goal). */
-.panel-fade-enter-active,
-.panel-fade-leave-active {
-  transition: opacity 0.35s ease;
-}
-.panel-fade-enter-active .reading-panel,
-.panel-fade-leave-active .reading-panel {
-  transition:
-    transform 0.35s ease,
-    opacity 0.35s ease;
-}
-.panel-fade-enter-from,
-.panel-fade-leave-to {
-  opacity: 0;
-}
-.panel-fade-enter-from .reading-panel,
-.panel-fade-leave-to .reading-panel {
-  transform: translateX(24px);
-  opacity: 0;
-}
-
-/* Reduced motion: keep the UI transitions near-instant as well. */
-@media (prefers-reduced-motion: reduce) {
-  .panel-fade-enter-active,
-  .panel-fade-leave-active,
-  .panel-fade-enter-active .reading-panel,
-  .panel-fade-leave-active .reading-panel,
-  .hint-fade-enter-active,
-  .hint-fade-leave-active,
-  .list-slide-enter-active,
-  .list-slide-leave-active,
-  .legend,
-  .list-toggle {
-    transition-duration: 0.01s;
-    transition-delay: 0s;
-  }
-}
-
-/* Mobile: the reading panel becomes a full-screen sheet. */
-@media (max-width: 640px) {
-  .reading-scrim {
-    padding: 0;
-    align-items: stretch;
-    justify-content: stretch;
-  }
-  .reading-panel {
-    width: 100vw;
-    max-height: none;
-    height: 100dvh;
-    border-radius: 0;
-    border-left: none;
-    border-right: none;
-    box-sizing: border-box;
-    padding: 28px 22px 40px;
-    /* More opaque than the desktop card: full-screen text sits directly over
-       the bright bloom ring, so readability wins over the glass effect. */
-    background: rgba(10, 13, 22, 0.72);
-  }
-  .panel-fade-enter-from .reading-panel,
-  .panel-fade-leave-to .reading-panel {
-    transform: translateY(24px);
-  }
 }
 </style>
