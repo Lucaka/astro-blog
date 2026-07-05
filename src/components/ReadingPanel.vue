@@ -65,158 +65,74 @@ function handlePanelKeydown(event: KeyboardEvent) {
   <Transition name="panel-fade">
     <div
       v-if="post"
-      class="reading-scrim"
+      class="fixed inset-0 z-30 flex items-center justify-end p-[clamp(16px,4vw,48px)] max-sm:items-stretch max-sm:justify-stretch max-sm:p-0"
       @click.self="emit('close')"
       @keydown="handlePanelKeydown"
     >
+      <!-- Mobile (max-sm): a full-screen sheet, more opaque than the desktop
+           card — full-screen text sits directly over the bright bloom ring,
+           so readability wins over the glass effect. -->
       <article
         ref="panelEl"
-        class="reading-panel"
+        class="reading-panel relative max-h-[84vh] w-[min(440px,92vw)] overflow-y-auto rounded-[20px] border border-white/12 bg-[#0e121e]/45 px-[30px] py-8 text-ink shadow-[0_8px_40px_rgba(0,0,0,0.25)] backdrop-blur-lg focus:outline-none max-sm:h-dvh max-sm:max-h-none max-sm:w-screen max-sm:rounded-none max-sm:border-x-0 max-sm:bg-[#0a0d16]/72 max-sm:px-[22px] max-sm:pt-7 max-sm:pb-10"
         role="dialog"
         aria-modal="true"
         :aria-label="post.title"
         tabindex="-1"
       >
         <button
-          class="reading-panel__close"
+          class="absolute top-3.5 right-4 size-8 cursor-pointer rounded-lg bg-white/6 text-xl leading-none text-[#cdd6f4] transition-colors duration-150 hover:bg-white/14 focus-visible:bg-white/14"
           aria-label="關閉文章"
           @click="emit('close')"
         >
           ×
         </button>
         <div
-          class="reading-panel__category"
+          class="inline-flex items-center gap-[7px] text-xs font-semibold tracking-[0.04em] uppercase"
           :style="{ color: catColor(post.category) }"
         >
           <span
-            class="reading-panel__dot"
+            class="size-2 rounded-full"
             :style="{ background: catColor(post.category) }"
           ></span>
           {{ catLabel(post.category) }}
         </div>
-        <h2 class="reading-panel__title">{{ post.title }}</h2>
-        <div class="reading-panel__meta">
+        <h2 class="mt-3 mb-1.5 text-[26px] leading-[1.2] font-bold">
+          {{ post.title }}
+        </h2>
+        <div class="text-[13px] opacity-75">
           {{ postMeta(post) }} ·
-          <a class="reading-panel__permalink" :href="postPath(post.slug)"
+          <a
+            class="text-accent hover:underline focus-visible:underline"
+            :href="postPath(post.slug)"
             >單篇頁面 ↗</a
           >
         </div>
-        <div class="reading-panel__tags">
-          <span v-for="tag in post.tags" :key="tag" class="reading-panel__tag">{{
-            tag
-          }}</span>
+        <div class="my-4 flex flex-wrap gap-[7px]">
+          <span
+            v-for="tag in post.tags"
+            :key="tag"
+            class="rounded-lg border border-white/8 bg-white/7 px-2.5 py-[3px] text-xs"
+            >{{ tag }}</span
+          >
         </div>
-        <p class="reading-panel__summary">{{ post.summary }}</p>
+        <p class="mt-2 mb-4 text-[15px] leading-[1.6] opacity-[0.92]">
+          {{ post.summary }}
+        </p>
         <!-- Rendered Markdown from the content collection. -->
-        <div class="reading-panel__body" v-html="html"></div>
+        <div
+          class="reading-panel__body text-sm leading-[1.75] opacity-[0.78]"
+          v-html="html"
+        ></div>
       </article>
     </div>
   </Transition>
 </template>
 
 <style scoped>
-.reading-scrim {
-  position: fixed;
-  inset: 0;
-  z-index: 30;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  padding: clamp(16px, 4vw, 48px);
-}
-.reading-panel {
-  position: relative;
-  width: min(440px, 92vw);
-  max-height: 84vh;
-  overflow-y: auto;
-  padding: 32px 30px;
-  border-radius: 20px;
-  background: rgba(14, 18, 30, 0.45);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.25);
-  color: #eef2ff;
-}
-.reading-panel:focus {
-  outline: none;
-}
-.reading-panel__close {
-  position: absolute;
-  top: 14px;
-  right: 16px;
-  width: 32px;
-  height: 32px;
-  border: none;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.06);
-  color: #cdd6f4;
-  font-size: 20px;
-  line-height: 1;
-  cursor: pointer;
-  transition: background 0.15s ease;
-}
-.reading-panel__close:hover,
-.reading-panel__close:focus-visible {
-  background: rgba(255, 255, 255, 0.14);
-}
-.reading-panel__category {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-.reading-panel__dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-}
-.reading-panel__title {
-  margin: 12px 0 6px;
-  font-size: 26px;
-  font-weight: 700;
-  line-height: 1.2;
-}
-.reading-panel__meta {
-  font-size: 13px;
-  opacity: 0.75;
-}
-.reading-panel__permalink {
-  color: #8ab4ff;
-  text-decoration: none;
-}
-.reading-panel__permalink:hover,
-.reading-panel__permalink:focus-visible {
-  text-decoration: underline;
-}
-.reading-panel__tags {
-  margin: 16px 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 7px;
-}
-.reading-panel__tag {
-  font-size: 12px;
-  padding: 3px 10px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.07);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-.reading-panel__summary {
-  margin: 8px 0 16px;
-  font-size: 15px;
-  line-height: 1.6;
-  opacity: 0.92;
-}
-.reading-panel__body {
-  font-size: 14px;
-  line-height: 1.75;
-  opacity: 0.78;
-}
-/* Rendered Markdown (v-html) is unscoped, so reach it with :deep(). */
+/* Rendered Markdown (v-html) is unscoped raw HTML — Tailwind classes can't
+   reach it, so it keeps a hand-written block via :deep(). The list-style /
+   underline / heading rules restore what Tailwind's preflight resets. */
 .reading-panel__body :deep(p) {
   margin: 0 0 12px;
 }
@@ -224,10 +140,29 @@ function handlePanelKeydown(event: KeyboardEvent) {
   color: #fff;
   font-weight: 600;
 }
+.reading-panel__body :deep(h2),
+.reading-panel__body :deep(h3) {
+  margin: 24px 0 10px;
+  line-height: 1.3;
+  color: #fff;
+  font-weight: 600;
+}
+.reading-panel__body :deep(h2) {
+  font-size: 18px;
+}
+.reading-panel__body :deep(h3) {
+  font-size: 16px;
+}
 .reading-panel__body :deep(ul),
 .reading-panel__body :deep(ol) {
   margin: 0 0 12px;
   padding-left: 20px;
+}
+.reading-panel__body :deep(ul) {
+  list-style: disc;
+}
+.reading-panel__body :deep(ol) {
+  list-style: decimal;
 }
 .reading-panel__body :deep(li) {
   margin: 4px 0;
@@ -241,6 +176,7 @@ function handlePanelKeydown(event: KeyboardEvent) {
 }
 .reading-panel__body :deep(a) {
   color: #8ab4ff;
+  text-decoration: underline;
 }
 .reading-panel__body :deep(code) {
   padding: 1px 5px;
@@ -262,7 +198,9 @@ function handlePanelKeydown(event: KeyboardEvent) {
   font-size: inherit;
 }
 
-/* Panel fade/slide transition (slow, per the calm-motion goal). */
+/* Panel fade/slide transition (slow, per the calm-motion goal). Vue
+   <Transition> hooks are runtime-generated class names, so they stay as CSS
+   rather than Tailwind utilities. */
 .panel-fade-enter-active,
 .panel-fade-leave-active {
   transition: opacity 0.35s ease;
@@ -294,26 +232,8 @@ function handlePanelKeydown(event: KeyboardEvent) {
   }
 }
 
-/* Mobile: the reading panel becomes a full-screen sheet. */
+/* Mobile: the sheet slides up from below instead of in from the right. */
 @media (max-width: 640px) {
-  .reading-scrim {
-    padding: 0;
-    align-items: stretch;
-    justify-content: stretch;
-  }
-  .reading-panel {
-    width: 100vw;
-    max-height: none;
-    height: 100dvh;
-    border-radius: 0;
-    border-left: none;
-    border-right: none;
-    box-sizing: border-box;
-    padding: 28px 22px 40px;
-    /* More opaque than the desktop card: full-screen text sits directly over
-       the bright bloom ring, so readability wins over the glass effect. */
-    background: rgba(10, 13, 22, 0.72);
-  }
   .panel-fade-enter-from .reading-panel,
   .panel-fade-leave-to .reading-panel {
     transform: translateY(24px);

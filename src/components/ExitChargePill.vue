@@ -9,11 +9,15 @@ defineProps<{
 
 <template>
   <Transition name="charge-fade">
-    <div v-if="visible" class="exit-charge" aria-hidden="true">
+    <div
+      v-if="visible"
+      class="pointer-events-none fixed bottom-[clamp(72px,12vh,120px)] left-1/2 z-20 flex -translate-x-1/2 flex-col items-center gap-[7px] rounded-2xl border border-white/12 bg-[#0c101c]/55 px-[18px] py-2.5 text-[13px] tracking-[0.06em] text-ink-soft backdrop-blur-[6px]"
+      aria-hidden="true"
+    >
       <span>繼續滾動 → 前往星系群</span>
-      <span class="exit-charge__bar">
+      <span class="block h-[3px] w-[150px] overflow-hidden rounded-full bg-white/15">
         <span
-          class="exit-charge__fill"
+          class="block h-full rounded-full bg-accent"
           :style="{ width: progress * 100 + '%' }"
         ></span>
       </span>
@@ -22,41 +26,8 @@ defineProps<{
 </template>
 
 <style scoped>
-.exit-charge {
-  position: fixed;
-  left: 50%;
-  bottom: clamp(72px, 12vh, 120px);
-  transform: translateX(-50%);
-  z-index: 20;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 7px;
-  padding: 10px 18px;
-  border-radius: 16px;
-  background: rgba(12, 16, 28, 0.55);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  color: #d7def5;
-  font-size: 13px;
-  letter-spacing: 0.06em;
-  pointer-events: none;
-}
-.exit-charge__bar {
-  display: block;
-  width: 150px;
-  height: 3px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.15);
-  overflow: hidden;
-}
-.exit-charge__fill {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: #8ab4ff;
-}
+/* Vue <Transition> hooks are runtime-generated class names, so they stay as
+   CSS rather than Tailwind utilities. */
 .charge-fade-enter-active,
 .charge-fade-leave-active {
   transition: opacity 0.25s ease;

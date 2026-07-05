@@ -24,37 +24,42 @@ watch(showInfo, async (open) => {
   <button
     v-if="!hidden"
     type="button"
-    class="info-button"
+    class="fixed right-[clamp(16px,3vw,28px)] bottom-[clamp(16px,3vw,28px)] z-20 size-[34px] cursor-pointer rounded-full border border-white/14 bg-[#0c101c]/45 text-base leading-none font-semibold text-ink-soft backdrop-blur-[6px] transition-colors duration-150 hover:bg-white/14 focus-visible:bg-white/14"
     aria-label="操作指南"
     @click="showInfo = true"
   >
     ?
   </button>
 
+  <!-- Same glassmorphism family as the reading panel, centered instead of
+       docked right. Mobile (max-sm): darker fill and square corners over the
+       bright bloom ring, but the guide stays a centered card, not a sheet. -->
   <Transition name="panel-fade">
     <div
       v-if="showInfo"
-      class="info-scrim"
+      class="fixed inset-0 z-30 flex items-center justify-center p-[clamp(16px,4vw,48px)] max-sm:p-0"
       @click.self="showInfo = false"
       @keydown.escape.prevent="showInfo = false"
     >
       <section
         ref="panelEl"
-        class="info-panel"
+        class="info-panel relative max-h-[80vh] w-[min(400px,92vw)] overflow-y-auto rounded-[20px] border border-white/12 bg-[#0e121e]/45 px-[30px] py-8 text-ink shadow-[0_8px_40px_rgba(0,0,0,0.25)] backdrop-blur-lg focus:outline-none max-sm:h-dvh max-sm:rounded-none max-sm:border-x-0 max-sm:bg-[#0a0d16]/72 max-sm:px-[22px] max-sm:pt-7 max-sm:pb-10"
         role="dialog"
         aria-modal="true"
         aria-label="操作指南"
         tabindex="-1"
       >
         <button
-          class="info-panel__close"
+          class="absolute top-3.5 right-4 size-8 cursor-pointer rounded-lg bg-white/6 text-xl leading-none text-[#cdd6f4] transition-colors duration-150 hover:bg-white/14 focus-visible:bg-white/14"
           aria-label="關閉操作指南"
           @click="showInfo = false"
         >
           ×
         </button>
-        <h2 class="info-panel__title">操作指南</h2>
-        <ul class="info-panel__list">
+        <h2 class="mt-1 mb-4 text-xl font-bold">操作指南</h2>
+        <ul
+          class="list-disc pl-[18px] text-sm leading-[1.9] opacity-90 [&_strong]:font-semibold [&_strong]:text-accent [&>li+li]:mt-1.5"
+        >
           <li><strong>拖曳</strong>旋轉視角，<strong>滾輪 / 雙指</strong>縮放</li>
           <li><strong>點擊星星</strong>閱讀文章，游標懸停可預覽</li>
           <li><strong>左下圖例</strong>篩選分類</li>
@@ -72,98 +77,9 @@ watch(showInfo, async (open) => {
 </template>
 
 <style scoped>
-.info-button {
-  position: fixed;
-  right: clamp(16px, 3vw, 28px);
-  bottom: clamp(16px, 3vw, 28px);
-  z-index: 20;
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgba(12, 16, 28, 0.45);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  color: #d7def5;
-  font-size: 16px;
-  font-weight: 600;
-  line-height: 1;
-  cursor: pointer;
-  transition: background 0.15s ease;
-}
-.info-button:hover,
-.info-button:focus-visible {
-  background: rgba(255, 255, 255, 0.14);
-}
-
-/* Same glassmorphism family as the reading panel, centered instead of
-   docked right. */
-.info-scrim {
-  position: fixed;
-  inset: 0;
-  z-index: 30;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: clamp(16px, 4vw, 48px);
-}
-.info-panel {
-  position: relative;
-  width: min(400px, 92vw);
-  max-height: 80vh;
-  overflow-y: auto;
-  padding: 32px 30px;
-  border-radius: 20px;
-  background: rgba(14, 18, 30, 0.45);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.25);
-  color: #eef2ff;
-}
-.info-panel:focus {
-  outline: none;
-}
-.info-panel__close {
-  position: absolute;
-  top: 14px;
-  right: 16px;
-  width: 32px;
-  height: 32px;
-  border: none;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.06);
-  color: #cdd6f4;
-  font-size: 20px;
-  line-height: 1;
-  cursor: pointer;
-  transition: background 0.15s ease;
-}
-.info-panel__close:hover,
-.info-panel__close:focus-visible {
-  background: rgba(255, 255, 255, 0.14);
-}
-.info-panel__title {
-  margin: 4px 0 16px;
-  font-size: 20px;
-  font-weight: 700;
-}
-.info-panel__list {
-  margin: 0;
-  padding-left: 18px;
-  font-size: 14px;
-  line-height: 1.9;
-  opacity: 0.9;
-}
-.info-panel__list li + li {
-  margin-top: 6px;
-}
-.info-panel__list strong {
-  color: #8ab4ff;
-  font-weight: 600;
-}
-
-/* Panel fade/slide transition (slow, per the calm-motion goal). */
+/* Panel fade/slide transition (slow, per the calm-motion goal). Vue
+   <Transition> hooks are runtime-generated class names, so they stay as CSS
+   rather than Tailwind utilities. */
 .panel-fade-enter-active,
 .panel-fade-leave-active {
   transition: opacity 0.35s ease;
@@ -195,21 +111,8 @@ watch(showInfo, async (open) => {
   }
 }
 
-/* Mobile: darker fill and square corners over the bright bloom ring, but the
-   guide stays a centered card rather than a full sheet. */
+/* Mobile: the guide slides up from below instead of in from the right. */
 @media (max-width: 640px) {
-  .info-scrim {
-    padding: 0;
-  }
-  .info-panel {
-    height: 100dvh;
-    border-radius: 0;
-    border-left: none;
-    border-right: none;
-    box-sizing: border-box;
-    padding: 28px 22px 40px;
-    background: rgba(10, 13, 22, 0.72);
-  }
   .panel-fade-enter-from .info-panel,
   .panel-fade-leave-to .info-panel {
     transform: translateY(24px);

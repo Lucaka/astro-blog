@@ -887,8 +887,11 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="universe">
-    <div ref="container" class="black-hole-canvas"></div>
+  <div class="fixed inset-0 font-sans">
+    <div
+      ref="container"
+      class="fixed inset-0 h-screen w-screen overflow-hidden bg-black [&_canvas]:block"
+    ></div>
 
     <!-- Where am I: 星系群 › 星系 breadcrumb; the group crumb zooms out. -->
     <UniverseBreadcrumb
@@ -947,25 +950,3 @@ onMounted(() => {
     <ReadingPanel :post="selectedPost" :html="selectedHtml" @close="closeModal" />
   </div>
 </template>
-
-<style scoped>
-.universe {
-  position: fixed;
-  inset: 0;
-  font-family:
-    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-}
-
-.black-hole-canvas {
-  position: fixed;
-  inset: 0;
-  width: 100vw;
-  height: 100vh;
-  background: #000;
-  overflow: hidden;
-}
-
-.black-hole-canvas :deep(canvas) {
-  display: block;
-}
-</style>
