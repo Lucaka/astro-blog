@@ -322,14 +322,22 @@ onMounted(() => {
   //   window.dispatchEvent(new CustomEvent("blackhole:reading", { detail: true }))
   //   window.dispatchEvent(new CustomEvent("blackhole:reading", { detail: false }))
   const EXPLORE_STATE = { exposure: 0.78, bloom: 0.6, opacity: 1, speed: 1 };
-  const READING_STATE = { exposure: 0.34, bloom: 0.3, opacity: 0.4, speed: 0.35 };
+  const READING_STATE = {
+    exposure: 0.34,
+    bloom: 0.3,
+    opacity: 0.4,
+    speed: 0.35,
+  };
 
   // Every particle material that exposes uOpacity, gathered once so the frame
   // loop can fade the whole field together.
   const spriteMaterials: THREE.ShaderMaterial[] = [];
   scene.traverse((obj) => {
     const material = (obj as THREE.Points).material;
-    if (material instanceof THREE.ShaderMaterial && material.uniforms.uOpacity) {
+    if (
+      material instanceof THREE.ShaderMaterial &&
+      material.uniforms.uOpacity
+    ) {
       spriteMaterials.push(material);
     }
   });
@@ -478,7 +486,11 @@ onMounted(() => {
   // camera along the origin->star ray to just beyond it, so the star ends up
   // centered with the black hole behind. Polar angle is clamped to the
   // controls' limits so OrbitControls never fights the flight.
-  let flight: { from: THREE.Vector3; t: number; star: ReturnType<typeof contentStars.findBySlug> } | null = null;
+  let flight: {
+    from: THREE.Vector3;
+    t: number;
+    star: ReturnType<typeof contentStars.findBySlug>;
+  } | null = null;
   const flightDest = new THREE.Vector3();
   const flightSpherical = new THREE.Spherical();
   flyToStar = (slug) => {
@@ -540,7 +552,10 @@ onMounted(() => {
   function handlePointerUp(event: PointerEvent) {
     // Distinguish a click from an orbit-drag: only treat near-stationary
     // releases as selections so dragging the camera never opens a post.
-    const moved = Math.hypot(event.clientX - downAt.x, event.clientY - downAt.y);
+    const moved = Math.hypot(
+      event.clientX - downAt.x,
+      event.clientY - downAt.y,
+    );
     if (moved > 6) return;
     setPointer(event);
     raycaster.setFromCamera(pointer, camera);
@@ -701,9 +716,7 @@ onMounted(() => {
       // Exit pill: armed while parked at the galaxy's zoom wall; the charge
       // drains away as soon as the wheel goes quiet or the camera leaves.
       const atWall =
-        viewMode.value === "galaxy" &&
-        galaxies.length > 1 &&
-        dist >= EXIT_WALL;
+        viewMode.value === "galaxy" && galaxies.length > 1 && dist >= EXIT_WALL;
       if (nearExitWall.value !== atWall) nearExitWall.value = atWall;
       wheelIdle += dt;
       if (!atWall) {
@@ -733,7 +746,10 @@ onMounted(() => {
       const a = Math.min(1, flight.t);
       const k = a < 0.5 ? 4 * a * a * a : 1 - Math.pow(-2 * a + 2, 3) / 2;
       const starPos = flight.star.mesh.position;
-      flightDest.copy(starPos).normalize().multiplyScalar(starPos.length() + 6.5);
+      flightDest
+        .copy(starPos)
+        .normalize()
+        .multiplyScalar(starPos.length() + 6.5);
       flightSpherical.setFromVector3(flightDest);
       flightSpherical.phi = THREE.MathUtils.clamp(
         flightSpherical.phi,
@@ -857,7 +873,10 @@ onMounted(() => {
     window.clearTimeout(hintTimer);
     window.removeEventListener("popstate", handlePopstate);
     window.removeEventListener("resize", handleResize);
-    window.removeEventListener("blackhole:reading", handleReading as EventListener);
+    window.removeEventListener(
+      "blackhole:reading",
+      handleReading as EventListener,
+    );
     document.removeEventListener("visibilitychange", handleVisibility);
     reducedQuery.removeEventListener("change", handleReducedChange);
     renderer.domElement.removeEventListener("pointermove", handlePointerMove);
@@ -887,8 +906,11 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="universe">
-    <div ref="container" class="black-hole-canvas"></div>
+  <div class="fixed inset-0 font-sans">
+    <div
+      ref="container"
+      class="fixed inset-0 h-screen w-screen overflow-hidden bg-black [&_canvas]:block"
+    ></div>
 
     <!-- Where am I: 星系群 › 星系 breadcrumb; the group crumb zooms out. -->
     <UniverseBreadcrumb
@@ -918,7 +940,9 @@ onMounted(() => {
     <HintToast :show="showHint">拖曳探索宇宙 · 點擊星星閱讀文章</HintToast>
 
     <!-- Group view hint: how to get back into a galaxy. -->
-    <HintToast :show="viewMode === 'group'">點擊星系進入 · 滾輪放大返回</HintToast>
+    <HintToast :show="viewMode === 'group'"
+      >點擊星系進入 · 滾輪放大返回</HintToast
+    >
 
     <!-- Exit pill: parked at the zoom wall — keep scrolling to leave. -->
     <ExitChargePill :visible="nearExitWall" :progress="exitProgress" />
@@ -944,28 +968,10 @@ onMounted(() => {
     />
 
     <!-- Reading panel: glassmorphism card shown when a post is open. -->
-    <ReadingPanel :post="selectedPost" :html="selectedHtml" @close="closeModal" />
+    <ReadingPanel
+      :post="selectedPost"
+      :html="selectedHtml"
+      @close="closeModal"
+    />
   </div>
 </template>
-
-<style scoped>
-.universe {
-  position: fixed;
-  inset: 0;
-  font-family:
-    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-}
-
-.black-hole-canvas {
-  position: fixed;
-  inset: 0;
-  width: 100vw;
-  height: 100vh;
-  background: #000;
-  overflow: hidden;
-}
-
-.black-hole-canvas :deep(canvas) {
-  display: block;
-}
-</style>

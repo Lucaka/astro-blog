@@ -1,0 +1,11 @@
+@import "tailwindcss";
+
+/* Shared universe palette, exposed as Tailwind color tokens (text-ink,
+   bg-accent, …). Values match the hand-written CSS the Vue components used
+   before the Tailwind migration. */
+@theme {
+  --color-ink: #eef2ff; /* bright foreground on glass panels */
+  --color-ink-soft: #d7def5; /* softer HUD foreground */
+  --color-ink-dim: #aab4d4; /* dimmed captions and counters */
+  --color-accent: #8ab4ff; /* link / focus blue */
+}

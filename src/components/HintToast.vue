@@ -8,31 +8,19 @@ defineProps<{
 
 <template>
   <Transition name="hint-fade">
-    <p v-if="show" class="hint" aria-hidden="true">
+    <p
+      v-if="show"
+      class="pointer-events-none fixed bottom-[clamp(72px,12vh,120px)] left-1/2 z-20 -translate-x-1/2 rounded-full border border-white/12 bg-[#0c101c]/55 px-[18px] py-2.5 text-[13px] tracking-[0.06em] text-ink-soft backdrop-blur-[6px]"
+      aria-hidden="true"
+    >
       <slot />
     </p>
   </Transition>
 </template>
 
 <style scoped>
-.hint {
-  position: fixed;
-  left: 50%;
-  bottom: clamp(72px, 12vh, 120px);
-  transform: translateX(-50%);
-  z-index: 20;
-  margin: 0;
-  padding: 10px 18px;
-  border-radius: 999px;
-  background: rgba(12, 16, 28, 0.55);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  color: #d7def5;
-  font-size: 13px;
-  letter-spacing: 0.06em;
-  pointer-events: none;
-}
+/* Vue <Transition> hooks are runtime-generated class names, so they stay as
+   CSS rather than Tailwind utilities. */
 .hint-fade-enter-active {
   transition: opacity 1.2s ease 0.8s;
 }
