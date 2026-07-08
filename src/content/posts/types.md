@@ -6,7 +6,7 @@ tags: ["vs code"]
 summary: Types 相關筆記與範例整理。
 ---
 
-```javascript!
+```javascript
 export const useTodos = defineStore('todos', {
   state: () => ({
     /** @type {{ text: string, id: number, isFinished: boolean }[]} */

@@ -11,7 +11,7 @@ summary: 語法
 void expression
 ```
 
-```javascript=
+```javascript
 void 0;   // undefined
 void(0);  // undefined
 

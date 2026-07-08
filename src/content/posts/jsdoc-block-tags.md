@@ -6,7 +6,7 @@ tags: ["vs code"]
 summary: JSDoc block tags 相關筆記與範例整理。
 ---
 
-```javascript!
+```javascript
 // src/toast.js
 
 /**

@@ -7,7 +7,7 @@ summary: 可以使 DIV, P, UL 的文字內容可編輯
 ---
 
 可以使 DIV, P, UL 的文字內容可編輯
-```=html
+```html
 <div contenteditable>
   123132
 </div>

@@ -12,7 +12,7 @@ Chrome 會將沒有對 Cookie SameSite 屬性的 Cookie 預設加入 SameSite=La
 如果要避免這問題，就必須將 SameSite 屬性設為 SameSite=None; secure，並且透過 Https 進行資料傳輸，就能避免 Cookie 在不同網站能被存取且又能安全傳遞資料。如果沒加上 secure ，一樣僅能透過 Https 運作。
 
 
-```javascript=
+```javascript
 fetch("http://192.168.1.100:3030", {
       method: "POST",
       credentials: "include",

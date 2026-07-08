@@ -16,7 +16,7 @@ summary: iOS9 以前使用 URL Scheme 開啟 APP 的方式,未安裝時會出現
 
 #### Deep Link
 使用 URI schemes
-```typescript=
+```typescript
 window.location.href = 'xxxxapp://redirect/*'
 ```
 

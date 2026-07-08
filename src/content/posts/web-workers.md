@@ -9,7 +9,7 @@ summary: 透過 worker 建構子便可以產生 worker 物件，並且執行 Jav
 透過 worker 建構子便可以產生 worker 物件，並且執行 JavaScript 檔案。在 worker 中的 JavaScript 運行在不同於 window 的執行緒環境，所以在 worker 中存取全域物件應該要透過 self ，如果透過 window 會導致錯誤發生。
 
 ### Dedicated workers
-```javascript=
+```javascript
 // index.js
 if (window.Worker) {
   // 產生 dedicated worker, worker.js檔案需要server提供  
@@ -20,7 +20,7 @@ if (window.Worker) {
   }
 }
 ```
-```javascript=
+```javascript
 // worker.js
 onmessage = function(e) {
   console.log(e)
@@ -46,7 +46,7 @@ close();
 
 ### Shared workers
 shared web worker 能夠被多個程式腳本存取，即使是跨越不同 window、iframe 或 worker。但是瀏覽器支援度較低
-```javascript=
+```javascript
 if (window.SharedWorker) {
 	var myWorker = new SharedWorker("sharedWorker.js");
     myWorker.port.onmessage = function (e) {
@@ -55,7 +55,7 @@ if (window.SharedWorker) {
 	myWorker.port.postMessage([8,8]);
 }
 ```
-```javascript=
+```javascript
 onconnect = function(e) {
   var port = e.ports[0];
   port.onmessage = function(e) {

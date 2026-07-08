@@ -7,7 +7,7 @@ summary: 移除檔案
 ---
 
 移除檔案
-```javascript=
+```javascript
 const shell = require('shelljs')
 
 shell.exec('npx rimraf dist')

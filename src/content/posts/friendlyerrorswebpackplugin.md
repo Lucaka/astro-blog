@@ -8,7 +8,7 @@ summary: vue cli 顯示自訂訊息
 
 vue cli 顯示自訂訊息
 
-```javascript=
+```javascript
 configureWebpack: {
     plugins: [
       new FriendlyErrorsWebpackPlugin({

@@ -7,7 +7,7 @@ summary: package.json
 ---
 
 package.json
-```json=
+```json
 {
   "name": "@test/utils",
   "version": "1.0.0",

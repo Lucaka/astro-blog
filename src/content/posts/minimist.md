@@ -11,7 +11,7 @@ summary: 可以解析node下,cmd 所帶入的參數
 node deploy/build.js --report --system=kch,ptch
 ```
 可以解析node下,cmd 所帶入的參數
-```javascript=
+```javascript
 const argv = require('minimist')(process.argv.slice(2))
 console.log('argv', argv)// argv { _: [], report: true, system: 'kch,ptch' }
 ```

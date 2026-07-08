@@ -10,7 +10,7 @@ summary: 1. 取得OpenSSL
    Git已內建OpenSSL，預設路徑為C:\Program Files\Git\usr\bin\openssl.exe
 2. 建立Private Key與Certificate
 新增一個 `server.conf` 檔案
-```csv=
+```csv
     [req]
     prompt = no
     default_md = sha256

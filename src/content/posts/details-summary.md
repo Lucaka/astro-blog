@@ -6,7 +6,7 @@ tags: ["HTML", "HTML tag"]
 summary: details & summary 相關筆記與範例整理。
 ---
 
-```=html
+```html
 <details>     
 <summary>Click here to see more from Earth 616</summary>              <table>
   <tr>                    
