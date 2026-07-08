@@ -1,25 +1,36 @@
 ---
-title: JS｜Object keys 排序
+title: JS｜Object 屬性的排序規則
 date: "2024.05.10"
 category: frontend
 tags: ["JS"]
-summary: 在ES6 之前Object 的鍵值對是無序的
+summary: ES6 之後，物件屬性的走訪順序有明確規則：整數鍵由小到大、字串鍵依插入順序、Symbol 最後。
 ---
 
-* 在ES6 之前Object 的鍵值對是無序的
-* 在ES6 之後Object 的鍵值對按照自然數、非自然數和Symbol 進行排序，自然數是按照大小升序進行排序，其他兩種都是按照插入的時間順序進行排序。
+在 ES6 之前，物件（Object）的屬性順序是沒有保證的。ES6 之後則有了明確規則，走訪屬性時會依照以下順序：
 
-```javascript=
-const objWithStrings = {
+1. **整數鍵（integer keys）**：由小到大升序排列。
+2. **一般字串鍵**：依照「加入物件的先後順序」排列。
+3. **Symbol 鍵**：同樣依照插入順序，排在最後。
+
+這裡有個容易踩到的細節：只有「標準的非負整數字串」才算整數鍵。像 `"001"`、`"002"` 這種**有前導零**的字串，並不是標準寫法，所以會被當成一般字串鍵處理；而 `"100"` 才是真正的整數鍵。
+
+```javascript
+const obj = {
   "002": "002",
   [Symbol("first")]: "first",
   c: "c",
   b: "b",
-  "100": "100",
+  100: "100",
   "001": "001",
   [Symbol("second")]: "second",
-}
+};
 
-console.log(Reflect.ownKeys(objWithStrings));
+console.log(Reflect.ownKeys(obj));
 // ["100", "002", "c", "b", "001", Symbol(first), Symbol(second)]
 ```
+
+對照上面的規則來看這個結果：
+
+- `"100"` 是整數鍵，排最前面。
+- `"002"`、`"c"`、`"b"`、`"001"` 都是字串鍵，依插入順序排列。
+- 兩個 Symbol 依插入順序排在最後。
