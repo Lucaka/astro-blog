@@ -3,7 +3,7 @@ title: JS｜Generators
 date: "2023.05.14"
 category: frontend
 tags: ["JS"]
-summary: `*` 表示為一個 Generator function type
+summary: Generator function type
 ---
 
 `*` 表示為一個 Generator function type

@@ -3,7 +3,7 @@ title: JS｜Intersection Observer API
 date: "2024.12.01"
 category: frontend
 tags: ["JS"]
-summary: * Lazy-loading of images
+summary: Lazy-loading of images
 ---
 
 * Lazy-loading of images 

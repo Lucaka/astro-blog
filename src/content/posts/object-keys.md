@@ -3,7 +3,7 @@ title: JS｜Object keys 排序
 date: "2024.05.10"
 category: frontend
 tags: ["JS"]
-summary: * 在ES6 之前Object 的鍵值對是無序的
+summary: 在ES6 之前Object 的鍵值對是無序的
 ---
 
 * 在ES6 之前Object 的鍵值對是無序的
