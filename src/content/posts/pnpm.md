@@ -49,7 +49,7 @@ packages:
    並在模組底下執行pnpm init 初始化 package.json
    package name分別為 @test/ui, @test/web
    package type設定為 module
-   ```json=
+   ```json
     {
       "name": "@test/ui",
       "type": "module",
@@ -65,12 +65,12 @@ packages:
    pnpm-workspace.yaml
    ```
  5. 在pageages/ui 底下新增 index.js並加入
-    ```javascript=
+    ```javascript
     export const add = (a,b) => a + b
     ```
     在root cmd 下 pnpm i @test/ui --filter @test/web
     接下來在pageages/web 底下新增 index,就能使用 @test/ui的東西了
-    ```javascript= 
+    ```javascript
     import { add } from "@test/ui";
     ```
     

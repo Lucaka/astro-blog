@@ -261,6 +261,19 @@ const jsonLd = JSON.stringify({
 		line-height: 1.3;
 		color: #fff;
 	}
+	/* Heading anchor: a faint "#" that appears when you hover the heading. */
+	.post__body .heading-anchor {
+		margin-left: 8px;
+		color: #8ab4ff;
+		text-decoration: none;
+		opacity: 0;
+		transition: opacity 0.15s ease;
+	}
+	.post__body h2:hover .heading-anchor,
+	.post__body h3:hover .heading-anchor,
+	.post__body .heading-anchor:focus-visible {
+		opacity: 0.7;
+	}
 	.post__body ul,
 	.post__body ol {
 		margin: 0 0 14px;

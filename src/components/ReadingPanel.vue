@@ -120,6 +120,11 @@ const emit = defineEmits<{
   color: #8ab4ff;
   text-decoration: underline;
 }
+/* Heading anchors are for the standalone article page; the modal has no
+   scroll-to-hash affordance, so drop them here to keep headings clean. */
+.reading-panel__body :deep(.heading-anchor) {
+  display: none;
+}
 .reading-panel__body :deep(code) {
   padding: 1px 5px;
   border-radius: 5px;
