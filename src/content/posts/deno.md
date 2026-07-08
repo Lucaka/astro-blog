@@ -15,7 +15,7 @@ Deno 環境使用ES modules
 ```
 deno run main.ts a b -c --quiet
 ```
-```typescript=
+```typescript
 console.log(Deno.args) // [ "a", "b", "-c", "--quiet" ]
 ```
 * automatically be restarted / formatted / tested / bundled.
@@ -46,7 +46,7 @@ https://www.jsdelivr.com/esm
 #### Managing dependencies
 管理所有載入的套件, Deno沒有像NPM package管理方式, Deno 的解決方式是新增一個檔案(`deps.ts`)並將所使用到的依賴統一匯入匯出。也可以分成開發依賴、生產依賴
 
-```typescript=
+```typescript
 // deps.ts
 import dayjs from 'https://esm.run/dayjs';
 

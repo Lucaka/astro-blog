@@ -8,7 +8,7 @@ summary: 樣板文字類型
 
 [樣板文字類型](https://www.typescriptlang.org/docs/handbook/2/template-literal-types.html)
 
-```typescript=
+```typescript
 type HeadingLevel = 1 | 2 | 3 | 4 | 5
 type HeadingType = `h${HeadingLevel}`
 const heading1: HeadingType = "h3" // 🟢

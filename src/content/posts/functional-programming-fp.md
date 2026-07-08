@@ -6,7 +6,7 @@ tags: ["Functional Programming (FP)"]
 summary: 改為 FP
 ---
 
-```javascript=
+```javascript
 function calculationBMI(bmi
   if(bmi < 0) {
     return '資料錯誤'
@@ -28,7 +28,7 @@ function calculationBMI(bmi
 calculationBMI(20); // '正常'
 ```
 改為 FP
-```javascript=
+```javascript
 // match 函式先省略
 const lessThan = x => bmi => bmi< x ;
 

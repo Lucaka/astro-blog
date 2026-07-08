@@ -6,7 +6,7 @@ tags: ["Vue.js", "Vue SFC"]
 summary: 在SFC內寫一個元件 相關筆記與範例整理。
 ---
 
-```javascript=
+```javascript
 <script setup lang="tsx">
 const Foo = (props: {msg: string }) => {
    return <div>{props.msg}</div>

@@ -7,7 +7,7 @@ summary: webpack dev server 自定義訊息顯示
 ---
 
 webpack dev server 自定義訊息顯示
-```javascript=
+```javascript
 // test.js
 class TestPlugin {
   constructor (options) {
@@ -21,7 +21,7 @@ class TestPlugin {
 module.exports = TestPlugin
 ```
 
-```javascript=
+```javascript
 // vue.config.js
 const TestPlugin = require('./TestPlugin')
 module.exports = {

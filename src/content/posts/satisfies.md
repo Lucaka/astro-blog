@@ -6,7 +6,7 @@ tags: ["TypeScript"]
 summary: satisfies 相關筆記與範例整理。
 ---
 
-```typescript=
+```typescript
 type Type = {
   amount: number | string
 }

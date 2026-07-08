@@ -6,7 +6,7 @@ tags: ["node"]
 summary: 取得指令內的參數 相關筆記與範例整理。
 ---
 
-```json=
+```json
 // package.json script
 {
   "name": "mhms_frontend",
@@ -20,14 +20,14 @@ summary: 取得指令內的參數 相關筆記與範例整理。
   // ...
 }
 ```
-```=
+```
 commands : npm run serve:system
 // 同上
 commands : npm run serve -- --system=kch,ptch
 // 同上
 commands : npx vue-cli-service serve -- --system=kch,ptch
 ```
-```javascript=
+```javascript
 const { argv } = require('process')
 console.log(argv)
 ```

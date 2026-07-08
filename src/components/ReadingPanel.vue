@@ -120,23 +120,60 @@ const emit = defineEmits<{
   color: #8ab4ff;
   text-decoration: underline;
 }
+/* Heading anchors are for the standalone article page; the modal has no
+   scroll-to-hash affordance, so drop them here to keep headings clean. */
+.reading-panel__body :deep(.heading-anchor) {
+  display: none;
+}
 .reading-panel__body :deep(code) {
   padding: 1px 5px;
   border-radius: 5px;
   background: rgba(255, 255, 255, 0.1);
   font-size: 13px;
 }
-.reading-panel__body :deep(pre) {
-  padding: 14px 16px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  overflow-x: auto;
-  font-size: 13px;
-  line-height: 1.6;
+/* Fenced code is rendered by Expressive Code (own frame + copy button); just
+   space it and stop the inline-code pill from leaking onto its lines. */
+.reading-panel__body :deep(.expressive-code) {
+  margin: 0 0 12px;
 }
-.reading-panel__body :deep(pre code) {
+.reading-panel__body :deep(.expressive-code code) {
   padding: 0;
   background: none;
+  border-radius: 0;
   font-size: inherit;
+}
+
+/* Callouts: :::info / :::warning turned into <aside> by remark-callouts. */
+.reading-panel__body :deep(.callout) {
+  margin: 14px 0;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-left-width: 3px;
+  background: rgba(255, 255, 255, 0.04);
+}
+.reading-panel__body :deep(.callout > :last-child) {
+  margin-bottom: 0;
+}
+.reading-panel__body :deep(.callout__label) {
+  margin: 0 0 5px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.9;
+}
+.reading-panel__body :deep(.callout--info) {
+  border-left-color: #8ab4ff;
+}
+.reading-panel__body :deep(.callout--info .callout__label) {
+  color: #8ab4ff;
+}
+.reading-panel__body :deep(.callout--warning) {
+  border-left-color: #ffcc66;
+  background: rgba(255, 204, 102, 0.06);
+}
+.reading-panel__body :deep(.callout--warning .callout__label) {
+  color: #ffcc66;
 }
 </style>

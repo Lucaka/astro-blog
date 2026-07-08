@@ -6,7 +6,7 @@ tags: ["JS", "money format"]
 summary: regex 相關筆記與範例整理。
 ---
 
-```javascript=
+```javascript
 const formatMoney = (money) => {
   return money.replace(new RegExp(`(?!^)(?=(\\d{3})+${money.includes('.') ? '\\.' : '$'})`, 'g'), ',')  
 }

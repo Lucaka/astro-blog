@@ -8,7 +8,7 @@ summary: 顯示各項目的編譯速度
 
 顯示各項目的編譯速度
 
-```javascript=
+```javascript
 const SpeedMeasurePlugin = require('speed-measure-webpack-plugin')
 
 const smp = new SpeedMeasurePlugin({
