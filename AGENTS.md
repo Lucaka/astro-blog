@@ -47,6 +47,22 @@ Manage the background server with `astro dev stop`, `astro dev status`, and
   URLs with the `postPath` / `BASE_URL` helpers, never hardcode the base.
 - Deploy is automatic on push to `main` via `.github/workflows/deploy.yml`.
 
+## Pull Request 標題規範
+
+PR 標題一律採用 `<type>: [Scope] - <描述>` 格式：
+
+- **type**：Conventional Commits 類型 — `feat`（新功能）、`fix`（修錯）、
+  `refactor`、`style`、`docs`、`chore`、`perf`、`test`。
+- **[Scope]**：受影響的元件 / 模組 / 區塊，首字母大寫，用中括號包起來。
+  例如 `[Base]`（專案設定 / 建置）、`[BlackHole]`、`[GlassPanel]`、
+  `[ContentStars]`、`[RSS]`。
+- **描述**：以繁體中文（`zh-Hant`）簡述變更；牽涉特定檔案時可點名該檔。
+
+範例：
+
+- `feat: [Base] - vite.config.ts 設定 xxx 調整`
+- `fix: [GlassPanel] - 玻璃效果調整`
+
 ## Documentation
 
 Full Astro docs: <https://docs.astro.build>. Useful guides:

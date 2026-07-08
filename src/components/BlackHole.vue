@@ -12,7 +12,6 @@ import { createStarfield } from "../three/blackhole/starfield";
 import { createNebula } from "../three/blackhole/nebula";
 import { createGravityGrid } from "../three/blackhole/gravityGrid";
 import { createAccretionDisk } from "../three/blackhole/accretionDisk";
-import { createOrbitingBodies } from "../three/blackhole/orbitingBodies";
 import { createJets } from "../three/blackhole/jets";
 import { LensingShader } from "../three/blackhole/lensingShader";
 import { createDysonSphere } from "../three/blackhole/dysonSphere";
@@ -239,7 +238,6 @@ onMounted(() => {
   const nebula = createNebula();
   const gravityGrid = createGravityGrid();
   const accretionDisk = createAccretionDisk({ count: lowPower ? 3000 : 7000 });
-  const orbitingBodies = createOrbitingBodies();
   const jets = createJets({ countPerJet: lowPower ? 500 : 1200 });
   const dysonSphere = createDysonSphere();
   const einsteinRing = createEinsteinRing();
@@ -252,7 +250,6 @@ onMounted(() => {
   galaxyScene.add(
     gravityGrid.lines,
     accretionDisk.points,
-    orbitingBodies.group,
     jets.points,
     dysonSphere.group,
     einsteinRing,
@@ -396,13 +393,13 @@ onMounted(() => {
   let openOnArrival: Post | null = null;
   // Overscroll accumulator behind the `exitProgress` ref (0 -> 1 launches).
   let exitCharge = 0;
-  // Exiting takes TWO gestures: the scroll that hits the wall never counts —
-  // no matter how long it lasts — the wheel must first go quiet at the wall
-  // (arming the gesture), and only the next scroll charges the exit. This is
-  // what makes "zoom out for an overview" impossible to overshoot.
-  let exitArmed = false;
-  // Seconds since the last wheel-out event over the scene.
-  let wheelIdle = Infinity;
+  // Only the zoom-out that happens *while already pinned at the wall* charges
+  // the exit: the scroll/pinch that carries the camera out to the wall leaves
+  // `nearExitWall` false until it lands, so it can't overshoot into the group
+  // view. Continuing to zoom out at the wall then fills the pill directly — no
+  // separate "arm" gesture or view nudge needed. The charge drains once the
+  // gesture goes quiet, so an abandoned attempt resets itself.
+  let gestureIdle = Infinity; // seconds since the last zoom-out at the wall
 
   function startToGroup() {
     if (viewMode.value !== "galaxy" || selectedPost.value) return;
@@ -410,7 +407,6 @@ onMounted(() => {
     controls.enabled = false;
     exitCharge = 0;
     exitProgress.value = 0;
-    exitArmed = false;
     nearExitWall.value = false;
     // Hand the camera over from any in-progress search flight.
     flight = null;
@@ -567,36 +563,79 @@ onMounted(() => {
       if (hit) startToGalaxy(hit.object.userData.galaxy as Galaxy);
     }
   }
-  // Overscroll-to-exit: once the camera sits at the zoom wall, further
-  // wheel-out charges the exit gesture instead of instantly jumping views
-  // (~5 notches, or the trackpad equivalent, to launch). Touch users take
-  // the breadcrumb instead.
-  function handleExitWheel(event: WheelEvent) {
+  // Shared gate + accumulator for both zoom-out gestures (wheel and pinch).
+  // Charging is allowed only once the camera is pinned at the zoom wall
+  // (`nearExitWall`), which the frame loop sets from the camera distance — so
+  // the gesture that carries you out to the wall can't spill over into the
+  // group view, but simply keeping going once you're there fills the pill.
+  function chargeExit(amount: number) {
     if (
       viewMode.value !== "galaxy" ||
       transition ||
       selectedPost.value ||
       galaxies.length < 2 ||
-      event.deltaY <= 0
+      !nearExitWall.value
     ) {
       return;
     }
-    // Every wheel-out is "activity": it keeps the gesture from arming, so a
-    // single continuous scroll (or its momentum tail) can never launch.
-    wheelIdle = 0;
-    if (!exitArmed) return;
-    // Normalize line-mode deltas (Firefox) and cap flick spikes so one
-    // aggressive trackpad swipe can't launch on its own.
-    const delta = event.deltaMode === 1 ? event.deltaY * 33 : event.deltaY;
-    exitCharge = Math.min(1, exitCharge + Math.min(delta, 120) / 500);
+    gestureIdle = 0;
+    exitCharge = Math.min(1, exitCharge + amount);
     exitProgress.value = exitCharge;
     if (exitCharge >= 1) startToGroup();
+  }
+
+  // Wheel/trackpad zoom-out at the wall (~5 notches to launch). Line-mode
+  // deltas (Firefox) are normalized and flick spikes capped so one aggressive
+  // swipe can't fill the pill on its own.
+  function handleExitWheel(event: WheelEvent) {
+    if (event.deltaY <= 0) return;
+    const delta = event.deltaMode === 1 ? event.deltaY * 33 : event.deltaY;
+    chargeExit(Math.min(delta, 120) / 500);
+  }
+
+  // Touch zoom-out at the wall: OrbitControls clamps pinch-zoom at maxDistance,
+  // so a continued pinch-together there charges the exit the same way wheel-out
+  // does — giving phones a gesture to leave the galaxy, not just the breadcrumb.
+  let lastPinchDist = 0;
+  function pinchDistance(touches: TouchList) {
+    return Math.hypot(
+      touches[0].clientX - touches[1].clientX,
+      touches[0].clientY - touches[1].clientY,
+    );
+  }
+  function handleTouchStart(event: TouchEvent) {
+    if (event.touches.length === 2)
+      lastPinchDist = pinchDistance(event.touches);
+  }
+  function handleTouchMove(event: TouchEvent) {
+    if (event.touches.length !== 2) return;
+    const dist = pinchDistance(event.touches);
+    // Fingers coming together (distance shrinking) is a zoom-out; spreading
+    // apart zooms in and never charges.
+    const closing = lastPinchDist - dist;
+    lastPinchDist = dist;
+    if (closing > 0) chargeExit(Math.min(closing, 40) / 220);
+  }
+  function handleTouchEnd(event: TouchEvent) {
+    if (event.touches.length < 2) lastPinchDist = 0;
   }
 
   renderer.domElement.addEventListener("pointermove", handlePointerMove);
   renderer.domElement.addEventListener("pointerdown", handlePointerDown);
   renderer.domElement.addEventListener("pointerup", handlePointerUp);
   renderer.domElement.addEventListener("wheel", handleExitWheel, {
+    passive: true,
+  });
+  renderer.domElement.addEventListener("touchstart", handleTouchStart, {
+    passive: true,
+  });
+  renderer.domElement.addEventListener("touchmove", handleTouchMove, {
+    passive: true,
+  });
+  renderer.domElement.addEventListener("touchend", handleTouchEnd, {
+    passive: true,
+  });
+  renderer.domElement.addEventListener("touchcancel", handleTouchEnd, {
     passive: true,
   });
 
@@ -655,7 +694,6 @@ onMounted(() => {
     if (galaxyScene.visible) {
       accretionDisk.update(simDt, camera);
       gravityGrid.update(simDt);
-      orbitingBodies.update(simDt);
       jets.update(simDt);
       dysonSphere.update(simDt);
       // Content stars get real dt for hover/filter easing, `motion` for orbits.
@@ -713,23 +751,17 @@ onMounted(() => {
     } else if (!selectedPost.value) {
       // The camera always orbits the origin, so its length is the distance.
       const dist = camera.position.length();
-      // Exit pill: armed while parked at the galaxy's zoom wall; the charge
-      // drains away as soon as the wheel goes quiet or the camera leaves.
+      // Exit pill: shown while parked at the galaxy's zoom wall. Continuing to
+      // zoom out there charges it (see chargeExit); the charge drains away as
+      // soon as the gesture goes quiet or the camera leaves the wall.
       const atWall =
         viewMode.value === "galaxy" && galaxies.length > 1 && dist >= EXIT_WALL;
       if (nearExitWall.value !== atWall) nearExitWall.value = atWall;
-      wheelIdle += dt;
+      gestureIdle += dt;
       if (!atWall) {
-        exitArmed = false;
         exitCharge = 0;
-      } else {
-        // Arm once the wheel has gone quiet while parked at the wall; the
-        // charge also drains during quiet stretches, so an armed-but-
-        // abandoned gesture resets itself.
-        if (!exitArmed && wheelIdle > 0.35) exitArmed = true;
-        if (exitCharge > 0 && wheelIdle > 0.4) {
-          exitCharge = Math.max(0, exitCharge - dt * 0.6);
-        }
+      } else if (exitCharge > 0 && gestureIdle > 0.4) {
+        exitCharge = Math.max(0, exitCharge - dt * 0.6);
       }
       if (exitProgress.value !== exitCharge) exitProgress.value = exitCharge;
 
@@ -883,6 +915,10 @@ onMounted(() => {
     renderer.domElement.removeEventListener("pointerdown", handlePointerDown);
     renderer.domElement.removeEventListener("pointerup", handlePointerUp);
     renderer.domElement.removeEventListener("wheel", handleExitWheel);
+    renderer.domElement.removeEventListener("touchstart", handleTouchStart);
+    renderer.domElement.removeEventListener("touchmove", handleTouchMove);
+    renderer.domElement.removeEventListener("touchend", handleTouchEnd);
+    renderer.domElement.removeEventListener("touchcancel", handleTouchEnd);
     controls.dispose();
     composer.dispose();
     renderer.dispose();

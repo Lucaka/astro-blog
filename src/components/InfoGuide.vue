@@ -45,8 +45,8 @@ const showInfo = ref(false);
         左上<strong>文章清單</strong>可瀏覽並<strong>搜尋</strong>全部文章，懸停點亮對應的星星，點擊即飛往該星並開啟文章
       </li>
       <li v-if="multiGalaxy">
-        <strong>縮小到底後繼續滾動</strong
-        >離開星系、綜覽星系群；點擊星系或滾輪放大即可返回
+        <strong>縮小到底後持續縮小</strong
+        >離開星系、綜覽星系群；點擊星系或放大即可返回
       </li>
       <li>左上<strong>星系群</strong>麵包屑隨時可切換視角</li>
     </ul>
