@@ -3,7 +3,7 @@ title: Mono-repo
 date: "2022.05.12"
 category: frontend
 tags: ["Mono-repo"]
-summary: * MonoLith：一個項目，一個Git倉庫。
+summary: MonoLith：一個項目，一個Git倉庫。
 ---
 
 ![](https://i.imgur.com/yjIOF7P.png)
