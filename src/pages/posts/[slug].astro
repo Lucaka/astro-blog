@@ -285,18 +285,50 @@ const jsonLd = JSON.stringify({
 		background: rgba(255, 255, 255, 0.1);
 		font-size: 0.9em;
 	}
-	.post__body pre {
-		padding: 16px 18px;
-		border-radius: 12px;
-		border: 1px solid rgba(255, 255, 255, 0.08);
-		overflow-x: auto;
-		font-size: 14px;
-		line-height: 1.6;
+	/* Code blocks are rendered by Expressive Code (its own frame + copy button).
+	   Give it room and stop the inline-code pill leaking onto its lines. */
+	.post__body .expressive-code {
+		margin: 0 0 16px;
 	}
-	.post__body pre code {
+	.post__body .expressive-code code {
 		padding: 0;
 		background: none;
+		border-radius: 0;
 		font-size: inherit;
+	}
+
+	/* Callouts: :::info / :::warning turned into <aside> by remark-callouts. */
+	.post__body .callout {
+		margin: 18px 0;
+		padding: 12px 16px;
+		border-radius: 10px;
+		border: 1px solid rgba(255, 255, 255, 0.1);
+		border-left-width: 3px;
+		background: rgba(255, 255, 255, 0.04);
+	}
+	.post__body .callout > :last-child {
+		margin-bottom: 0;
+	}
+	.post__body .callout__label {
+		margin: 0 0 6px;
+		font-size: 12px;
+		font-weight: 600;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+		opacity: 0.9;
+	}
+	.post__body .callout--info {
+		border-left-color: #8ab4ff;
+	}
+	.post__body .callout--info .callout__label {
+		color: #8ab4ff;
+	}
+	.post__body .callout--warning {
+		border-left-color: #ffcc66;
+		background: rgba(255, 204, 102, 0.06);
+	}
+	.post__body .callout--warning .callout__label {
+		color: #ffcc66;
 	}
 
 	.post-nav {
