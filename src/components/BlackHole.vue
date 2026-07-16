@@ -370,6 +370,12 @@ onMounted(() => {
   const GROUP_DIST = { min: 16, max: 70 };
   const TO_GALAXY_AT = 20;
   const EXIT_WALL = GALAXY_DIST.max - 2; // "at the wall" once past this
+  // Sustained zoom-out required at the wall before the pill starts charging.
+  // Reaching the wall mid-scroll used to fill the bar instantly, which made it
+  // easy to overshoot out of the galaxy; this short arm delay means only a
+  // deliberate, held zoom-out leaves.
+  const EXIT_ARM_DELAY = 0.35; // seconds
+  const EXIT_GESTURE_GAP = 0.4; // idle beyond this ends the "still scrolling" run
 
   const easeIn = (x: number) => x * x * x;
   const easeOut = (x: number) => 1 - Math.pow(1 - x, 3);
@@ -396,16 +402,22 @@ onMounted(() => {
   // Only the zoom-out that happens *while already pinned at the wall* charges
   // the exit: the scroll/pinch that carries the camera out to the wall leaves
   // `nearExitWall` false until it lands, so it can't overshoot into the group
-  // view. Continuing to zoom out at the wall then fills the pill directly — no
-  // separate "arm" gesture or view nudge needed. The charge drains once the
-  // gesture goes quiet, so an abandoned attempt resets itself.
+  // view. Continuing to zoom out at the wall then fills the pill — but only once
+  // it has been held for EXIT_ARM_DELAY (see wallDwell), so brushing past the
+  // wall mid-scroll can't fill it. The charge drains once the gesture goes
+  // quiet, so an abandoned attempt resets itself.
   let gestureIdle = Infinity; // seconds since the last zoom-out at the wall
+  // Seconds of sustained zoom-out at the wall. Charging is armed only once this
+  // passes EXIT_ARM_DELAY; it resets whenever the gesture stalls or we leave
+  // the wall, so the delay must be earned by continuous scrolling each time.
+  let wallDwell = 0;
 
   function startToGroup() {
     if (viewMode.value !== "galaxy" || selectedPost.value) return;
     viewMode.value = "toGroup";
     controls.enabled = false;
     exitCharge = 0;
+    wallDwell = 0;
     exitProgress.value = 0;
     nearExitWall.value = false;
     // Hand the camera over from any in-progress search flight.
@@ -579,6 +591,10 @@ onMounted(() => {
       return;
     }
     gestureIdle = 0;
+    // Hold at the wall first: the arm timer (wallDwell) climbs in the frame loop
+    // while the zoom-out keeps coming, and only past EXIT_ARM_DELAY does the bar
+    // begin to fill — so a fleeting overscroll shows the pill but never charges.
+    if (wallDwell < EXIT_ARM_DELAY) return;
     exitCharge = Math.min(1, exitCharge + amount);
     exitProgress.value = exitCharge;
     if (exitCharge >= 1) startToGroup();
@@ -760,8 +776,15 @@ onMounted(() => {
       gestureIdle += dt;
       if (!atWall) {
         exitCharge = 0;
-      } else if (exitCharge > 0 && gestureIdle > 0.4) {
-        exitCharge = Math.max(0, exitCharge - dt * 0.6);
+        wallDwell = 0;
+      } else if (gestureIdle <= EXIT_GESTURE_GAP) {
+        // Still scrolling out at the wall: build the arm timer toward the
+        // EXIT_ARM_DELAY that chargeExit waits on before it fills the bar.
+        wallDwell += dt;
+      } else {
+        // Gesture stalled: forget the held time and let any charge drain away.
+        wallDwell = 0;
+        if (exitCharge > 0) exitCharge = Math.max(0, exitCharge - dt * 0.6);
       }
       if (exitProgress.value !== exitCharge) exitProgress.value = exitCharge;
 
