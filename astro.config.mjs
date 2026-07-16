@@ -14,8 +14,8 @@ import rehypeExternalLinks from "rehype-external-links";
 
 // https://astro.build/config
 export default defineConfig({
-  site: "https://Lucaka.github.io",
-  base: "/astro-blog",
+  site: "https://www.6ka.dev/",
+  base: "/",
   integrations: [
     // Expressive Code renders every fenced code block: syntax highlighting
     // (same tokyo-night palette as before), plus a copy button and titles.

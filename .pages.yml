@@ -4,11 +4,11 @@
 # to the repo, so a new post = a new star after the next deploy.
 #
 # Images uploaded through the CMS land in public/media and are served under
-# the site's /astro-blog base, so `![…](/astro-blog/media/foo.png)` works in
+# the site's root base, so `![…](/media/foo.png)` works in
 # posts. (`media` must be a path/object — `media: false` crashes the app.)
 media:
   input: public/media
-  output: /astro-blog/media
+  output: /media
 
 content:
   - name: posts
