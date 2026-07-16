@@ -4,7 +4,7 @@
 
 主題聚焦在**前端、圖學與隨筆**,介面語言為繁體中文 (`zh-Hant`)。
 
-- 🔭 **線上瀏覽**:<https://lucaka.github.io/astro-blog/>
+- 🔭 **線上瀏覽**:<https://www.6ka.dev/>
 - 🧪 **多星系預覽**:在網址後加上 `?demo=90`,會注入假資料以測試星系群視角
 
 > 3D 場景需要 JavaScript;關閉 JS 時首頁會自動降級為一份可爬取、可鍵盤瀏覽的純文字文章清單(`<noscript>` fallback)。
