@@ -2,10 +2,11 @@
 import type { Post } from "../data/posts";
 import { catColor, catLabel } from "../utils/categories";
 import { postMeta, postPath } from "../utils/posts";
-import { useI18n } from "../i18n/vue";
+import { useI18n, useLocale } from "../i18n/vue";
 import GlassPanel from "./GlassPanel.vue";
 
 const t = useI18n();
+const locale = useLocale();
 
 // Reading panel: glassmorphism card shown when a post is open. The parent
 // owns which post is open (its state lives in the URL via pushState), so
@@ -50,7 +51,7 @@ const emit = defineEmits<{
         {{ postMeta(post, t) }} ·
         <a
           class="text-accent hover:underline focus-visible:underline"
-          :href="postPath(post.slug)"
+          :href="postPath(post.slug, locale)"
           >{{ t("reading.fullPage") }}</a
         >
       </div>

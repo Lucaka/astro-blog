@@ -1,0 +1,168 @@
+---
+import { getCollection } from "astro:content";
+import { byDateDesc, postPath, localePrefix } from "../../utils/posts";
+import { useTranslations } from "../../i18n";
+import { LOCALE_META, type Locale } from "../../i18n/config";
+import LanguageSwitch from "../LanguageSwitch.astro";
+
+/**
+ * Themed 404: GitHub Pages serves the built `404.html` for any unknown URL
+ * under the site, so a mistyped or moved post link lands here instead of the
+ * default GitHub error page. Lists every post so lost readers have somewhere
+ * to go. Shared by the zh-hant `/404` and English `/en/404`.
+ */
+interface Props {
+	locale: Locale;
+}
+const { locale } = Astro.props;
+const t = useTranslations(locale);
+const localeMeta = LOCALE_META[locale];
+
+const entries = (await getCollection("posts")).sort(byDateDesc);
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const home = `${base}${localePrefix(locale)}/`;
+---
+
+<html lang={localeMeta.htmlLang}>
+	<head>
+		<meta charset="utf-8" />
+		<link rel="icon" type="image/svg+xml" href={`${base}/favicon.svg`} />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="generator" content={Astro.generator} />
+		<title>{t("notFound.docTitle")}</title>
+		<meta name="robots" content="noindex" />
+		<meta name="theme-color" content="#05070f" />
+	</head>
+	<body>
+		<main class="lost">
+			<div class="lost__lang">
+				<LanguageSwitch locale={locale} path="" />
+			</div>
+			<p class="lost__code" aria-hidden="true">404</p>
+			<h1 class="lost__title">{t("notFound.title")}</h1>
+			<p class="lost__text">
+				{t("notFound.text")}
+			</p>
+			<a class="lost__home" href={home}>{t("notFound.backHome")}</a>
+
+			<section class="lost__posts">
+				<h2>{t("notFound.postsHeading")}</h2>
+				<ul>
+					{
+						entries.map((entry) => (
+							<li>
+								<a href={postPath(entry.id, locale)}>{entry.data.title}</a>
+								<span class="lost__date">{entry.data.date}</span>
+							</li>
+						))
+					}
+				</ul>
+			</section>
+		</main>
+	</body>
+</html>
+
+<style is:global>
+	:root {
+		color-scheme: dark;
+	}
+	html,
+	body {
+		margin: 0;
+		padding: 0;
+		background: radial-gradient(
+			ellipse at 50% -10%,
+			#131a30 0%,
+			#05070f 60%,
+			#000 100%
+		);
+		min-height: 100vh;
+		color: #eef2ff;
+		font-family:
+			ui-sans-serif,
+			system-ui,
+			-apple-system,
+			"Segoe UI",
+			Roboto,
+			sans-serif;
+	}
+
+	.lost {
+		max-width: 640px;
+		margin: 0 auto;
+		padding: clamp(48px, 12vh, 120px) clamp(20px, 5vw, 32px) 64px;
+	}
+	.lost__lang {
+		display: flex;
+		justify-content: flex-end;
+		margin-bottom: 12px;
+	}
+	.lost__code {
+		margin: 0;
+		font-size: clamp(64px, 14vw, 110px);
+		font-weight: 700;
+		line-height: 1;
+		letter-spacing: 0.06em;
+		background: linear-gradient(180deg, #8ab4ff 0%, #3a4a7a 100%);
+		-webkit-background-clip: text;
+		background-clip: text;
+		color: transparent;
+	}
+	.lost__title {
+		margin: 18px 0 8px;
+		font-size: clamp(22px, 4.5vw, 30px);
+		line-height: 1.3;
+	}
+	.lost__text {
+		margin: 0 0 20px;
+		font-size: 15px;
+		line-height: 1.7;
+		opacity: 0.75;
+	}
+	.lost__home {
+		color: #8ab4ff;
+		text-decoration: none;
+		font-size: 15px;
+	}
+	.lost__home:hover,
+	.lost__home:focus-visible {
+		text-decoration: underline;
+	}
+
+	.lost__posts {
+		margin-top: 48px;
+	}
+	.lost__posts h2 {
+		font-size: 15px;
+		font-weight: 600;
+		letter-spacing: 0.08em;
+		opacity: 0.6;
+	}
+	.lost__posts ul {
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+	.lost__posts li {
+		display: flex;
+		align-items: baseline;
+		justify-content: space-between;
+		gap: 16px;
+		padding: 9px 0;
+		border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+	}
+	.lost__posts a {
+		color: #eef2ff;
+		text-decoration: none;
+	}
+	.lost__posts a:hover,
+	.lost__posts a:focus-visible {
+		color: #8ab4ff;
+		text-decoration: underline;
+	}
+	.lost__date {
+		flex: none;
+		font-size: 12px;
+		opacity: 0.5;
+	}
+</style>

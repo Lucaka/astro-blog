@@ -40,6 +40,10 @@ export const UI = {
     "post.navLabel": "前後篇文章",
     "post.older": "← 較舊一篇",
     "post.newer": "較新一篇 →",
+    "post.untranslatedNotice": "本文尚無此語言版本，以下顯示原文。",
+
+    // Language switcher
+    "nav.language": "語言",
 
     // RSS feed
     "rss.description": "在宇宙裡探索的部落格：前端、圖學與隨筆。",
@@ -127,6 +131,11 @@ export const UI = {
     "post.navLabel": "Previous and next articles",
     "post.older": "← Older",
     "post.newer": "Newer →",
+    "post.untranslatedNotice":
+      "This article isn't available in this language yet — showing the original below.",
+
+    // Language switcher
+    "nav.language": "Language",
 
     // RSS feed
     "rss.description":

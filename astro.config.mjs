@@ -43,7 +43,14 @@ export default defineConfig({
       },
     }),
     vue(),
-    sitemap(),
+    // The English per-post pages are untranslated fallbacks whose canonical
+    // points back at the zh-hant original, so keep them out of the sitemap —
+    // it should list canonical URLs only. The `/en/` landing page (a real
+    // localized alternate) stays in. Drop the filter in Phase 4 once posts are
+    // actually translated and become their own canonical URLs.
+    sitemap({
+      filter: (page) => !/\/en\/posts\//.test(page),
+    }),
   ],
   vite: {
     plugins: [tailwindcss()],

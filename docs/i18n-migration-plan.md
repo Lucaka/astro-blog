@@ -1,8 +1,8 @@
 # 多國語系(i18n)遷移規劃
 
-> 狀態:**Phase 1–2 已實作**(基礎建設 + 全站字串抽進 typed dictionary);
-> Phase 3(建立 `/en/` 站與 SEO)、Phase 4(內容翻譯)待辦。本文回答
-> 「Astro 是否有像 vue-i18n 的多國語系方案」,並依本專案現況制定遷移步驟。
+> 狀態:**Phase 1–3 已實作**(基礎建設 + 抽字串 + `/en/` 站與 SEO);
+> Phase 4(內容翻譯)、Phase 5(收尾)待辦。本文回答「Astro 是否有像
+> vue-i18n 的多國語系方案」,並依本專案現況制定遷移步驟。
 
 ## 實作進度
 
@@ -14,7 +14,18 @@
   `three/blackhole/galaxyImpostors`(canvas 標籤)、以及 7 個 Vue 元件全部
   改由字典供字。**zh-Hant 靜態輸出經 byte-level 比對:除 index 島嶼多帶一個
   `locale` prop 外,63 頁全數不變。**
-- ⏳ **Phase 3 / 4 / 5**:見下方規劃,尚未動工。
+- ✅ **Phase 3 頁面複製與 SEO**:頁面主體抽成共用元件
+  `src/components/pages/{UniverseIndex,PostArticle,NotFound}.astro`,`src/pages/`
+  下的檔案變薄殼;新增 `/en/` 整條路由(index / posts / 404 / rss)。SEO:
+  首頁對互指 hreflang + `x-default`→zh-hant、各語系 canonical 指自己;內容尚未
+  翻譯,故英文單篇頁為 **fallback**——中文原文內文 + 英文介面 + 「尚無翻譯」
+  提示,且 `canonical` 指向中文原文以合併重複內容(sitemap 亦排除這些
+  fallback 單篇頁,只列 canonical URL)。新增 `LanguageSwitch` 元件(首頁右上
+  浮層、單篇頁頁首),用 `getRelativeLocaleUrl` 產生對應連結。
+- ⏳ **Phase 4 內容翻譯**:content collection 改語系子目錄、逐篇翻譯;有翻譯
+  後把該篇 `<PostArticle translated>` 打開(canonical 轉為指自己、補 hreflang、
+  移除提示),並把 sitemap 的 `/en/posts/` 排除規則拿掉。
+- ⏳ **Phase 5 收尾**:見下方規劃。
 
 ## 一、Astro 的 i18n 生態:和 vue-i18n 的對應關係
 

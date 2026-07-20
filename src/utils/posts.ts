@@ -3,6 +3,16 @@
  * the client island (which uses `postPath` for pushState deep links).
  */
 import type { TranslateFn } from "../i18n";
+import { DEFAULT_LOCALE, type Locale } from "../i18n/config";
+
+/**
+ * URL path prefix for a locale: empty for the prefix-less default (`zh-hant`),
+ * `/en` for the rest. Kept framework-agnostic (no `astro:i18n`) so the client
+ * island can build the same links it does on the server.
+ */
+export function localePrefix(locale: Locale = DEFAULT_LOCALE): string {
+  return locale === DEFAULT_LOCALE ? "" : `/${locale}`;
+}
 
 /** Parse the display date ("2025.04" or "2025.04.16") into a real Date. */
 export function parseDisplayDate(display: string): Date {
@@ -45,8 +55,8 @@ export function postMeta(
     : post.date;
 }
 
-/** Site-relative path of a post page, respecting the configured base. */
-export function postPath(slug: string): string {
+/** Site-relative path of a post page, respecting the base and the locale. */
+export function postPath(slug: string, locale: Locale = DEFAULT_LOCALE): string {
   const base = import.meta.env.BASE_URL.replace(/\/$/, "");
-  return `${base}/posts/${slug}/`;
+  return `${base}${localePrefix(locale)}/posts/${slug}/`;
 }

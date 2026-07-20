@@ -26,10 +26,15 @@ export const DEFAULT_LOCALE: Locale = "zh-hant";
  */
 export const LOCALE_META: Record<
   Locale,
-  { htmlLang: string; ogLocale: string; label: string }
+  { htmlLang: string; ogLocale: string; label: string; short: string }
 > = {
-  "zh-hant": { htmlLang: "zh-Hant", ogLocale: "zh_TW", label: "繁體中文" },
-  en: { htmlLang: "en", ogLocale: "en_US", label: "English" },
+  "zh-hant": {
+    htmlLang: "zh-Hant",
+    ogLocale: "zh_TW",
+    label: "繁體中文",
+    short: "中",
+  },
+  en: { htmlLang: "en", ogLocale: "en_US", label: "English", short: "EN" },
 };
 
 /** Narrow an unknown value (e.g. `Astro.currentLocale`) to a known `Locale`. */

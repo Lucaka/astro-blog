@@ -10,17 +10,29 @@
  */
 import { inject, provide, type InjectionKey } from "vue";
 import { useTranslations, type Locale, type TranslateFn } from "./index";
+import { DEFAULT_LOCALE } from "./config";
 
 const I18N_KEY: InjectionKey<TranslateFn> = Symbol("i18n.t");
+const LOCALE_KEY: InjectionKey<Locale> = Symbol("i18n.locale");
 
-/** Called once at the island root. Provides a locale-bound `t` to children. */
+/**
+ * Called once at the island root. Provides a locale-bound `t` and the active
+ * `locale` to children (the latter for building locale-aware links such as
+ * `postPath(slug, locale)`).
+ */
 export function provideI18n(locale: Locale): TranslateFn {
   const t = useTranslations(locale);
   provide(I18N_KEY, t);
+  provide(LOCALE_KEY, locale);
   return t;
 }
 
 /** Grab the island's shared `t`. Falls back to the default locale off-tree. */
 export function useI18n(): TranslateFn {
   return inject(I18N_KEY, useTranslations());
+}
+
+/** Grab the island's active locale. Falls back to the default locale off-tree. */
+export function useLocale(): Locale {
+  return inject(LOCALE_KEY, DEFAULT_LOCALE);
 }

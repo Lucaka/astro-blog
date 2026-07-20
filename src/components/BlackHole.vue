@@ -140,7 +140,11 @@ function openPost(post: Post, pushHistory = true) {
     document.getElementById(`post-body-${post.slug}`)?.innerHTML ?? "";
   selectedPost.value = post;
   if (pushHistory) {
-    history.pushState({ universe: post.slug }, "", postPath(post.slug));
+    history.pushState(
+      { universe: post.slug },
+      "",
+      postPath(post.slug, props.locale),
+    );
   }
 }
 function closeModal() {
