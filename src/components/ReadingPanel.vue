@@ -2,7 +2,10 @@
 import type { Post } from "../data/posts";
 import { catColor, catLabel } from "../utils/categories";
 import { postMeta, postPath } from "../utils/posts";
+import { useI18n } from "../i18n/vue";
 import GlassPanel from "./GlassPanel.vue";
+
+const t = useI18n();
 
 // Reading panel: glassmorphism card shown when a post is open. The parent
 // owns which post is open (its state lives in the URL via pushState), so
@@ -26,7 +29,7 @@ const emit = defineEmits<{
     :label="post?.title ?? ''"
     align="end"
     tag="article"
-    close-label="關閉文章"
+    :close-label="t('reading.close')"
     @close="emit('close')"
   >
     <template v-if="post">
@@ -44,11 +47,11 @@ const emit = defineEmits<{
         {{ post.title }}
       </h2>
       <div class="text-[13px] opacity-75">
-        {{ postMeta(post) }} ·
+        {{ postMeta(post, t) }} ·
         <a
           class="text-accent hover:underline focus-visible:underline"
           :href="postPath(post.slug)"
-          >單篇頁面 ↗</a
+          >{{ t("reading.fullPage") }}</a
         >
       </div>
       <div class="my-4 flex flex-wrap gap-[7px]">

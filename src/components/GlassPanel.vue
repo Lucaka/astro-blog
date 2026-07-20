@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { nextTick, ref, watch } from "vue";
+import { useI18n } from "../i18n/vue";
 
 // Shared glassmorphism modal shell. Owns everything the reading panel and the
 // info guide had in common: the fixed scrim, the frosted card, the × close
@@ -16,15 +17,20 @@ const props = withDefaults(
     align?: "center" | "end";
     /** Card element tag — semantic only (e.g. "article" for the reading panel). */
     tag?: string;
-    /** aria-label for the × close button. */
+    /** aria-label for the × close button; defaults to the localized "Close". */
     closeLabel?: string;
   }>(),
-  { align: "center", tag: "section", closeLabel: "關閉" },
+  { align: "center", tag: "section" },
 );
 
 const emit = defineEmits<{
   (e: "close"): void;
 }>();
+
+const t = useI18n();
+// Callers usually pass their own (e.g. "關閉文章"); fall back to a plain
+// localized "關閉" when they don't.
+const closeAriaLabel = () => props.closeLabel ?? t("panel.close");
 
 // `align` is fixed per call site, so a plain computed-once string is enough.
 const scrimClass =
@@ -116,7 +122,7 @@ function handleKeydown(event: KeyboardEvent) {
         :aria-label="label"
         tabindex="-1"
       >
-        <button :class="closeClass" :aria-label="closeLabel" @click="emit('close')">
+        <button :class="closeClass" :aria-label="closeAriaLabel()" @click="emit('close')">
           ×
         </button>
         <slot />

@@ -3,6 +3,9 @@ import { computed, onMounted, ref, watch } from "vue";
 import type { Post } from "../data/posts";
 import { catColor, catLabel } from "../utils/categories";
 import { postMeta } from "../utils/posts";
+import { useI18n } from "../i18n/vue";
+
+const t = useI18n();
 
 // Article list sidebar: a plain, blog-style index of every post, plus a
 // search box that filters it in place. Matches span every galaxy. The scene
@@ -78,14 +81,14 @@ watch(listVisible, (visible) => {
     aria-controls="post-list-panel"
     @click="toggleList"
   >
-    <span aria-hidden="true">☰</span> 文章清單
+    <span aria-hidden="true">☰</span> {{ t("sidebar.toggle") }}
   </button>
   <Transition name="list-slide">
     <aside
       v-if="listVisible"
       id="post-list-panel"
       class="post-list fixed top-[calc(clamp(14px,3vw,24px)+84px)] bottom-[clamp(64px,10vh,96px)] left-[clamp(16px,3vw,32px)] z-20 flex w-[min(290px,calc(100vw-32px))] flex-col overflow-hidden text-ink max-sm:top-[calc(clamp(14px,3vw,24px)+44px)] max-sm:bottom-[calc(clamp(58px,14vw,76px)+46px)]"
-      aria-label="文章清單"
+      :aria-label="t('sidebar.panelLabel')"
     >
       <!-- Typing filters the list below in place; Enter picks the first
            match. Cross-galaxy matches are included — clicking one dives
@@ -95,8 +98,8 @@ watch(listVisible, (visible) => {
           v-model="searchQuery"
           class="w-full bg-transparent px-3 py-2 text-[13px] text-ink outline-none placeholder:text-ink-soft/55"
           type="search"
-          placeholder="搜尋星系…"
-          aria-label="搜尋文章"
+          :placeholder="t('sidebar.searchPlaceholder')"
+          :aria-label="t('sidebar.searchLabel')"
           @keydown.enter.prevent="onSearchEnter"
           @keydown.escape="searchQuery = ''"
         />
@@ -105,16 +108,21 @@ watch(listVisible, (visible) => {
         class="m-0 flex-none px-4 pt-2.5 pb-2 text-[11px] tracking-[0.08em] text-ink-dim"
         role="status"
       >
-        <template v-if="searching"
-          >符合 {{ filteredPosts.length }} / {{ posts.length }} 篇</template
-        >
-        <template v-else>共 {{ posts.length }} 篇</template>
+        <template v-if="searching">{{
+          t("sidebar.matchCount", {
+            matched: filteredPosts.length,
+            total: posts.length,
+          })
+        }}</template>
+        <template v-else>{{
+          t("sidebar.totalCount", { total: posts.length })
+        }}</template>
       </p>
       <p
         v-if="!filteredPosts.length"
         class="m-0 px-4 pt-1 pb-3.5 text-xs text-ink-dim"
       >
-        沒有符合的星星
+        {{ t("sidebar.noResults") }}
       </p>
       <!-- Extra bottom padding keeps the last entry clear of the chamfered
            corners. -->
@@ -141,7 +149,7 @@ watch(listVisible, (visible) => {
                 post.title
               }}</span>
               <span class="mt-0.5 block text-[11px] opacity-60">{{
-                postMeta(post)
+                postMeta(post, t)
               }}</span>
             </span>
           </button>

@@ -46,6 +46,12 @@ Manage the background server with `astro dev stop`, `astro dev status`, and
 - `astro.config.mjs` sets `site`/`base` (`/astro-blog`) — build site-relative
   URLs with the `postPath` / `BASE_URL` helpers, never hardcode the base.
 - Deploy is automatic on push to `main` via `.github/workflows/deploy.yml`.
+- **UI strings live in `src/i18n/ui.ts`**, keyed per locale (`zh-hant` is the
+  source of truth). Never hardcode user-facing text — add a `UiKey` and use
+  `useTranslations(locale)` in Astro pages, or `useI18n()` inside the Vue
+  island (`<BlackHole>` provides one locale-bound `t` to all children).
+  `astro.config.mjs`'s `i18n` block owns routing; `zh-hant` is prefix-less so
+  existing URLs never move. Migration plan: `docs/i18n-migration-plan.md`.
 
 ## Pull Request 標題規範
 

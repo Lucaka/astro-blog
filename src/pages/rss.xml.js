@@ -1,14 +1,18 @@
 import rss from "@astrojs/rss";
 import { getCollection } from "astro:content";
 import { byDateDesc, parseDisplayDate, postPath } from "../utils/posts";
+import { useTranslationsFor } from "../i18n";
+import { LOCALE_META } from "../i18n/config";
 
 export async function GET(context) {
   const entries = await getCollection("posts");
   entries.sort(byDateDesc);
 
+  const { locale, t } = useTranslationsFor(context.currentLocale);
+
   return rss({
-    title: "James Universe",
-    description: "在宇宙裡探索的部落格：前端、圖學與隨筆。",
+    title: t("site.name"),
+    description: t("rss.description"),
     // Channel link should point at the blog itself (site + base), not the
     // bare domain root.
     site: new URL(import.meta.env.BASE_URL, context.site).href,
@@ -19,6 +23,6 @@ export async function GET(context) {
       categories: [entry.data.category, ...entry.data.tags],
       link: postPath(entry.id),
     })),
-    customData: "<language>zh-Hant</language>",
+    customData: `<language>${LOCALE_META[locale].htmlLang}</language>`,
   });
 }

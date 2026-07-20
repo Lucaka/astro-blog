@@ -1,7 +1,20 @@
 # 多國語系(i18n)遷移規劃
 
-> 狀態:規劃(尚未實作)。本文回答「Astro 是否有像 vue-i18n 的多國語系方案」,
-> 並依本專案現況制定遷移步驟。
+> 狀態:**Phase 1–2 已實作**(基礎建設 + 全站字串抽進 typed dictionary);
+> Phase 3(建立 `/en/` 站與 SEO)、Phase 4(內容翻譯)待辦。本文回答
+> 「Astro 是否有像 vue-i18n 的多國語系方案」,並依本專案現況制定遷移步驟。
+
+## 實作進度
+
+- ✅ **Phase 1 基礎建設**:`astro.config.mjs` 加入 `i18n`(`zh-hant` 預設、
+  不加前綴);新增 `src/i18n/`(`config.ts` 語系登錄、`ui.ts` typed 字典、
+  `index.ts` `useTranslations`、`vue.ts` island 用 provide/inject)。
+- ✅ **Phase 2 抽字串**:index / [slug] / 404 / rss、`utils/posts`
+  (`postMeta`)、`utils/galaxies`(移除 locale 綁定的 `name`)、
+  `three/blackhole/galaxyImpostors`(canvas 標籤)、以及 7 個 Vue 元件全部
+  改由字典供字。**zh-Hant 靜態輸出經 byte-level 比對:除 index 島嶼多帶一個
+  `locale` prop 外,63 頁全數不變。**
+- ⏳ **Phase 3 / 4 / 5**:見下方規劃,尚未動工。
 
 ## 一、Astro 的 i18n 生態:和 vue-i18n 的對應關係
 

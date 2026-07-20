@@ -2,6 +2,7 @@
  * Helpers shared by the index page, the static post pages, the RSS feed and
  * the client island (which uses `postPath` for pushState deep links).
  */
+import type { TranslateFn } from "../i18n";
 
 /** Parse the display date ("2025.04" or "2025.04.16") into a real Date. */
 export function parseDisplayDate(display: string): Date {
@@ -35,8 +36,13 @@ export function byDateDesc(
 }
 
 /** "2025.04 · 約 5 分鐘" meta line shown in tooltips, the sidebar and panel. */
-export function postMeta(post: { date: string; minutes?: number }): string {
-  return post.minutes ? `${post.date} · 約 ${post.minutes} 分鐘` : post.date;
+export function postMeta(
+  post: { date: string; minutes?: number },
+  t: TranslateFn,
+): string {
+  return post.minutes
+    ? `${post.date} · ${t("post.readingTime", { minutes: post.minutes })}`
+    : post.date;
 }
 
 /** Site-relative path of a post page, respecting the configured base. */

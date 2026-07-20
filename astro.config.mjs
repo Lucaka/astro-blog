@@ -16,6 +16,15 @@ import rehypeExternalLinks from "rehype-external-links";
 export default defineConfig({
   site: "https://www.6ka.dev/",
   base: "/",
+  // i18n routing. `zh-hant` is the default locale and carries NO URL prefix,
+  // so every existing page, feed and indexed link stays exactly where it is;
+  // `en` (served under `/en/`) is additive. Translated UI strings live in
+  // `src/i18n/`, not here — this block only governs routing.
+  i18n: {
+    locales: ["zh-hant", "en"],
+    defaultLocale: "zh-hant",
+    routing: { prefixDefaultLocale: false },
+  },
   integrations: [
     // Expressive Code renders every fenced code block: syntax highlighting
     // (same tokyo-night palette as before), plus a copy button and titles.

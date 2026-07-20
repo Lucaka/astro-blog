@@ -4,6 +4,11 @@ import "../styles/global.css";
 import BlackHole from "../components/BlackHole.vue";
 import type { Post } from "../data/posts";
 import { byDateDesc, parseDisplayDate, readingTimeMinutes, postPath } from "../utils/posts";
+import { useTranslationsFor } from "../i18n";
+import { LOCALE_META } from "../i18n/config";
+
+const { locale, t } = useTranslationsFor(Astro.currentLocale);
+const localeMeta = LOCALE_META[locale];
 
 // Load every star from the Markdown content collection, newest first.
 const entries = (await getCollection("posts")).sort(byDateDesc);
@@ -29,18 +34,17 @@ const bodies = await Promise.all(
 );
 
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
-const description =
-  "James Universe — 在 3D 宇宙裡探索的部落格:前端、圖學與隨筆。每顆星星都是一篇文章。";
+const description = t("site.description");
 const ogImage = new URL(`${base}/og.png`, Astro.site);
 
 // Structured data: tell search engines this is a blog and list every post.
 const jsonLd = JSON.stringify({
   "@context": "https://schema.org",
   "@type": "Blog",
-  name: "James Universe",
+  name: t("site.name"),
   url: new URL(`${base}/`, Astro.site),
   description,
-  inLanguage: "zh-Hant",
+  inLanguage: localeMeta.htmlLang,
   blogPost: posts.map((post) => ({
     "@type": "BlogPosting",
     headline: post.title,
@@ -53,13 +57,13 @@ const jsonLd = JSON.stringify({
 }).replace(/</g, "\\u003c");
 ---
 
-<html lang="zh-Hant">
+<html lang={localeMeta.htmlLang}>
 	<head>
 		<meta charset="utf-8" />
 		<link rel="icon" type="image/svg+xml" href={`${base}/favicon.svg`} />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<meta name="generator" content={Astro.generator} />
-		<title>James Universe</title>
+		<title>{t("site.name")}</title>
 		<meta name="description" content={description} />
 		<link rel="canonical" href={new URL(`${base}/`, Astro.site)} />
 		<link
@@ -71,15 +75,15 @@ const jsonLd = JSON.stringify({
 		<meta name="theme-color" content="#05070f" />
 		<link rel="apple-touch-icon" href={`${base}/apple-touch-icon.png`} />
 		<meta property="og:type" content="website" />
-		<meta property="og:site_name" content="James Universe" />
-		<meta property="og:locale" content="zh_TW" />
-		<meta property="og:title" content="James Universe" />
+		<meta property="og:site_name" content={t("site.name")} />
+		<meta property="og:locale" content={localeMeta.ogLocale} />
+		<meta property="og:title" content={t("site.name")} />
 		<meta property="og:description" content={description} />
 		<meta property="og:url" content={new URL(`${base}/`, Astro.site)} />
 		<meta property="og:image" content={ogImage} />
 		<meta property="og:image:width" content="1200" />
 		<meta property="og:image:height" content="630" />
-		<meta property="og:image:alt" content="James Universe — 3D 宇宙部落格的黑洞星空" />
+		<meta property="og:image:alt" content={t("og.imageAlt")} />
 		<meta name="twitter:card" content="summary_large_image" />
 		<script is:inline type="application/ld+json" set:html={jsonLd} />
 	</head>
@@ -87,8 +91,8 @@ const jsonLd = JSON.stringify({
 		{/* Real links to every post: keyboard/screen-reader users can Tab through
 		    them (visible on focus), search engines can crawl them, and with JS
 		    off the <noscript> style below turns this into the whole page. */}
-		<nav class="post-index" aria-label="所有文章">
-			<h1 class="post-index__title">James Universe</h1>
+		<nav class="post-index" aria-label={t("index.postsNavLabel")}>
+			<h1 class="post-index__title">{t("site.name")}</h1>
 			<ul>
 				{posts.map((post) => (
 					<li>
@@ -105,8 +109,8 @@ const jsonLd = JSON.stringify({
 		    while the 3D bundle downloads. The island fades it out once the
 		    scene is actually rendering. */}
 		<div id="universe-loading" class="universe-loading" aria-hidden="true">
-			<p class="universe-loading__title">James Universe</p>
-			<p class="universe-loading__sub">正在點亮星空…</p>
+			<p class="universe-loading__title">{t("site.name")}</p>
+			<p class="universe-loading__sub">{t("index.loadingSub")}</p>
 		</div>
 
 		<noscript>
@@ -137,7 +141,7 @@ const jsonLd = JSON.stringify({
 			</style>
 		</noscript>
 
-		<BlackHole client:only="vue" posts={posts} />
+		<BlackHole client:only="vue" posts={posts} locale={locale} />
 
 		{/* Hidden, server-rendered Markdown bodies, pulled into the panel by slug. */}
 		<div class="post-bodies" aria-hidden="true">

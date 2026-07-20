@@ -1,10 +1,14 @@
 <script setup lang="ts">
+import { useI18n } from "../i18n/vue";
+
 // Exit pill: parked at the zoom wall — keep zooming out to leave. `progress`
 // mirrors the overscroll charge (0 → 1 launches the group view).
 defineProps<{
   visible: boolean;
   progress: number;
 }>();
+
+const t = useI18n();
 </script>
 
 <template>
@@ -14,7 +18,7 @@ defineProps<{
       class="pointer-events-none fixed bottom-[clamp(72px,12vh,120px)] left-1/2 z-20 flex -translate-x-1/2 flex-col items-center gap-[7px] rounded-2xl border border-white/12 bg-[#0c101c]/55 px-[18px] py-2.5 text-[13px] tracking-[0.06em] text-ink-soft backdrop-blur-[6px]"
       aria-hidden="true"
     >
-      <span>繼續縮小 → 前往星系群</span>
+      <span>{{ t("exit.label") }}</span>
       <span
         class="block h-[3px] w-[150px] overflow-hidden rounded-full bg-white/15"
       >
