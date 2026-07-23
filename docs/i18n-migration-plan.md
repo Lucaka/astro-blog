@@ -110,7 +110,7 @@ URL 不變是刻意的:不破壞既有 SEO 與外部連結。
 
 ### 內容(Markdown)
 
-- `src/content/posts/*.md` 共 71 篇,全為 zh-Hant,slug 無語言概念。
+- `src/content/posts/*.md` 共 61 篇,全為 zh-Hant,slug 無語言概念。
 - 文章翻譯是**選配**:規劃採 fallback — 沒有英文版的文章,英文站顯示中文
   原文(URL 仍在 `/en/` 下,頁面標注原文語言)。
 
@@ -152,17 +152,28 @@ URL 不變是刻意的:不破壞既有 SEO 與外部連結。
 4. 新增語言切換 UI(header / GlassPanel 內),用 `getRelativeLocaleUrl`
    產生對應連結,**禁止手刻 base 路徑**(維持專案慣例)。
 
-### Phase 4 — 內容翻譯(選配,可獨立排程)
+### Phase 4 — 翻譯基建 + 標籤頁 i18n(已實作)
 
-1. 內容集合改為語系子目錄:`src/content/posts/zh-hant/*.md`、
-   `src/content/posts/en/*.md`;loader `pattern` 不變,entry id 會自帶
-   `zh-hant/`、`en/` 前綴,以此過濾語系。schema 不必加欄位(同名檔案即互為
-   翻譯);`postPath` helper 增加 locale 參數。
-2. 既有 71 篇移入 `zh-hant/`;`postPath` 去除前綴維持舊 URL 不變。
-3. en 站的 `getStaticPaths`:優先取 `en/<slug>`,缺翻譯時 fallback 用
-   zh-Hant 內容 + `<html lang="zh-Hant">` 於文章區塊標注,並在頁首顯示
-   「此文尚無英文版」提示。
-4. RSS/sitemap/JSON-LD 隨語系內容更新。
+> 定案作法改為**兄弟檔**(而非原先設想的語系子目錄):既有 61 篇 zh-Hant
+> 完全不移動、URL 絕對不變,新增翻譯只需擺一個 `.en.md`。此階段只建基建,
+> 不實際翻譯任何內容。
+
+1. **內容集合(兄弟檔 `<slug>.en.md`)**:`content.config.ts` 的 `posts`
+   集合以 `!**/*.en.md` 排除翻譯檔;新增 `postTranslations` 集合載入
+   `*.en.md`,schema 只需 `title` / `summary`(`date` / `category` / `tags`
+   由原文繼承)。以 `generateId` 保留 `<slug>.en` 的 id(預設 slugifier 會把
+   `deno.en` 變成 `denoen`)。**注意:`postPath` 不需去前綴、既有 zh 檔不搬。**
+2. **自動升級**:`PostArticle` 改吃 `translation` prop 自動判定——非預設語系
+   且有翻譯 → 渲染英文標題/摘要/內文、canonical 指自己、補雙向 hreflang +
+   `x-default`、移除提示;否則 fallback。兩語系頁面僅在**翻譯存在時**互指
+   hreflang。`getStaticPaths`(zh 與 en)透過 `loadTranslations` /
+   `translationOf` 帶入翻譯查找。
+3. **sitemap**:過濾器改讀檔案系統偵測 `.en.md`,自動納入已翻譯的
+   `/en/posts/<slug>/`(canonical 指自己)、排除未翻譯者(canonical 指原文)。
+4. **標籤頁 i18n**:`tagPath` / `tagsIndexPath` 加 locale 參數;標籤頁抽共用
+   元件 `TagIndex` / `TagPage` 並字典化;新增 `/en/tags/` 與 `/en/tags/[tag]/`
+   (互指 hreflang、自我 canonical、`LanguageSwitch`);文章頁/首頁的標籤連結
+   全部改為 locale-aware。
 
 ### Phase 5 — 驗證與收尾
 
