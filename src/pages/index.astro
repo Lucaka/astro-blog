@@ -4,6 +4,7 @@ import "../styles/global.css";
 import BlackHole from "../components/BlackHole.vue";
 import type { Post } from "../data/posts";
 import { byDateDesc, parseDisplayDate, readingTimeMinutes, postPath } from "../utils/posts";
+import { tagsIndexPath } from "../utils/tags";
 
 // Load every star from the Markdown content collection, newest first.
 const entries = (await getCollection("posts")).sort(byDateDesc);
@@ -41,6 +42,7 @@ const jsonLd = JSON.stringify({
   url: new URL(`${base}/`, Astro.site),
   description,
   inLanguage: "zh-Hant",
+  author: { "@type": "Person", name: "James", url: new URL(`${base}/`, Astro.site) },
   blogPost: posts.map((post) => ({
     "@type": "BlogPosting",
     headline: post.title,
@@ -59,7 +61,7 @@ const jsonLd = JSON.stringify({
 		<link rel="icon" type="image/svg+xml" href={`${base}/favicon.svg`} />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<meta name="generator" content={Astro.generator} />
-		<title>James Universe</title>
+		<title>James Universe — 前端、圖學與隨筆的 3D 宇宙部落格</title>
 		<meta name="description" content={description} />
 		<link rel="canonical" href={new URL(`${base}/`, Astro.site)} />
 		<link
@@ -81,6 +83,9 @@ const jsonLd = JSON.stringify({
 		<meta property="og:image:height" content="630" />
 		<meta property="og:image:alt" content="James Universe — 3D 宇宙部落格的黑洞星空" />
 		<meta name="twitter:card" content="summary_large_image" />
+		<meta name="twitter:title" content="James Universe" />
+		<meta name="twitter:description" content={description} />
+		<meta name="twitter:image" content={ogImage} />
 		<script is:inline type="application/ld+json" set:html={jsonLd} />
 	</head>
 	<body>
@@ -89,6 +94,7 @@ const jsonLd = JSON.stringify({
 		    off the <noscript> style below turns this into the whole page. */}
 		<nav class="post-index" aria-label="所有文章">
 			<h1 class="post-index__title">James Universe</h1>
+			<a href={tagsIndexPath()}>瀏覽所有標籤</a>
 			<ul>
 				{posts.map((post) => (
 					<li>

@@ -2,7 +2,7 @@
 title: 語言代碼 (Language code)
 date: "2024.06.09"
 category: frontend
-tags: ["語言代碼 (Language code)"]
+tags: ["i18n"]
 summary: zh-TW
 ---
 

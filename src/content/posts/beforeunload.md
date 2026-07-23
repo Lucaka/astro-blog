@@ -2,7 +2,7 @@
 title: web｜beforeunload
 date: "2024.08.02"
 category: frontend
-tags: ["JS", "web"]
+tags: ["JS", "Web"]
 summary: 當window 準備釋放它的資源時，該事件被觸發。此時文件仍然可見，且事件仍可被取消的。
 ---
 
