@@ -1,7 +1,7 @@
 # 多國語系(i18n)遷移規劃
 
-> 狀態:**Phase 1–3 已實作**(基礎建設 + 抽字串 + `/en/` 站與 SEO);
-> Phase 4(內容翻譯)、Phase 5(收尾)待辦。本文回答「Astro 是否有像
+> 狀態:**Phase 1–4 已實作**(基礎建設 + 抽字串 + `/en/` 站與 SEO + 翻譯
+> 基建與標籤頁 i18n);Phase 5(收尾)待辦。本文回答「Astro 是否有像
 > vue-i18n 的多國語系方案」,並依本專案現況制定遷移步驟。
 
 ## 實作進度
@@ -22,10 +22,29 @@
   提示,且 `canonical` 指向中文原文以合併重複內容(sitemap 亦排除這些
   fallback 單篇頁,只列 canonical URL)。新增 `LanguageSwitch` 元件(首頁右上
   浮層、單篇頁頁首),用 `getRelativeLocaleUrl` 產生對應連結。
-- ⏳ **Phase 4 內容翻譯**:content collection 改語系子目錄、逐篇翻譯;有翻譯
-  後把該篇 `<PostArticle translated>` 打開(canonical 轉為指自己、補 hreflang、
-  移除提示),並把 sitemap 的 `/en/posts/` 排除規則拿掉。
-- ⏳ **Phase 5 收尾**:見下方規劃。
+- ✅ **Phase 4 翻譯基建 + 標籤頁 i18n**(**決策:採兄弟檔;翻譯內容先不做,
+  只建基建**):
+  - **內容結構**:英文翻譯採**兄弟檔** `<slug>.en.md`(既有 61 篇完全不動)。
+    `content.config.ts` 的 `posts` 集合以 `!**/*.en.md` 排除翻譯檔;新增
+    `postTranslations` 集合載入 `*.en.md`(只需 `title` / `summary`,`date` /
+    `category` / `tags` 由原文繼承),並用 `generateId` 保留 `<slug>.en` 這個
+    id(預設 slugifier 會把 `deno.en` 變成 `denoen`)。
+  - **自動升級**:`PostArticle` 改吃 `translation` prop 自動判定——非預設語系
+    且存在翻譯時渲染英文標題/摘要/內文、canonical 指自己、補雙向 hreflang +
+    `x-default`、移除「尚無翻譯」提示;否則 fallback。兩語系頁面都只在**翻譯
+    存在時**才互指 hreflang。sitemap 過濾器改讀檔案系統偵測 `.en.md`,自動把
+    已翻譯的 `/en/posts/<slug>/` 納入、未翻譯的排除。**驗證**:丟一個暫時
+    `deno.en.md` → 英文頁自動升級為正式頁、zh 頁補上 hreflang、進 sitemap;
+    移除後回復 fallback(皆已 build 驗證,暫存檔已刪)。
+  - **標籤頁 i18n**:`tagPath` / `tagsIndexPath` 加 locale 參數;標籤頁抽共用
+    元件 `TagIndex` / `TagPage` 並字典化,新增 `/en/tags/` 與 `/en/tags/[tag]/`
+    (互指 hreflang、自我 canonical、`LanguageSwitch`);文章頁與首頁的標籤連結
+    改為 locale-aware。
+  - 註:內容層(experimental content layer)在**增量** build 有快取,增刪
+    `.en.md` 後本機若沒清 `.astro` 快取可能顯示舊狀態;CI 每次全新 checkout
+    不受影響,必要時 `rm -rf .astro node_modules/.astro` 再 build。
+- ⏳ **Phase 5 收尾**:見下方規劃。實際逐篇英文翻譯(丟 `<slug>.en.md`)可由
+  作者日後分批進行,系統會自動接手。
 
 ## 一、Astro 的 i18n 生態:和 vue-i18n 的對應關係
 

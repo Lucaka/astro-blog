@@ -17,13 +17,16 @@ import {
 } from "../../i18n/config";
 import LanguageSwitch from "../LanguageSwitch.astro";
 import { tagSlug, tagPath, tagsIndexPath } from "../../utils/tags";
+import type { TranslationEntry } from "../../utils/translations";
 
 /**
  * Shared post document, rendered by both `/posts/[slug]` (zh-hant) and
- * `/en/posts/[slug]`. Until a real translation exists (`translated`), a
- * non-default locale serves the original's content as a fallback: the chrome
- * is localized, the body stays in the source language, and `canonical` points
- * at the original so the duplicate consolidates instead of competing in search.
+ * `/en/posts/[slug]`. A non-default locale shows a real translation when a
+ * `<slug>.en.md` sibling exists (`translation`); otherwise it falls back to the
+ * original's content — the chrome stays localized, the body stays in the source
+ * language, and `canonical` points at the original so the untranslated
+ * duplicate consolidates instead of competing in search. `date`, `category` and
+ * `tags` always come from the original so a translation never drifts on those.
  */
 type Entry = CollectionEntry<"posts">;
 interface Props {
@@ -31,23 +34,32 @@ interface Props {
 	entry: Entry;
 	newer: Entry | null;
 	older: Entry | null;
-	/** True once a real translation exists for this locale (Phase 4). */
-	translated?: boolean;
+	/** The `<slug>.<locale>.md` translation for this post, if one exists. */
+	translation?: TranslationEntry | null;
 }
-const { locale, entry, newer, older, translated = false } = Astro.props;
+const { locale, entry, newer, older, translation = null } = Astro.props;
 const t = useTranslations(locale);
 const localeMeta = LOCALE_META[locale];
 
-const { Content } = await render(entry);
-const { title, date, category, tags, summary } = entry.data;
+// A translation pair exists for this post (used for hreflang on BOTH locales);
+// this page is showing it only when we're on the non-default locale.
+const hasTranslation = translation != null;
+const showingTranslation = hasTranslation && locale !== DEFAULT_LOCALE;
+
+const { Content } = await render(showingTranslation ? translation : entry);
+const { date, category, tags } = entry.data;
+const title = showingTranslation ? translation.data.title : entry.data.title;
+const summary = showingTranslation
+	? translation.data.summary
+	: entry.data.summary;
 
 const meta = CATEGORY_META[category];
 const color = "#" + meta.color.toString(16).padStart(6, "0");
 const minutes = readingTimeMinutes(entry.body ?? "");
 const published = parseDisplayDate(date);
 
-// This locale is showing the original's content until a translation lands.
-const isFallback = !translated && locale !== DEFAULT_LOCALE;
+// A non-default locale with no translation shows the original as a fallback.
+const isFallback = locale !== DEFAULT_LOCALE && !hasTranslation;
 const bodyLang = isFallback ? LOCALE_META[DEFAULT_LOCALE].htmlLang : undefined;
 
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -66,9 +78,10 @@ const canonical = isFallback
 	? new URL(postPath(entry.id, DEFAULT_LOCALE), Astro.site)
 	: selfUrl;
 
-// Reciprocal hreflang only once real translations exist (Phase 4). Until then
-// there is no true alternate to advertise.
-const alternates = translated
+// Reciprocal hreflang only once a real translation exists — advertised on
+// BOTH locales' pages so they point at each other. Until then there is no true
+// alternate (the /en/ page is a fallback, canonical'd back to the original).
+const alternates = hasTranslation
 	? LOCALES.map((l) => ({
 			hreflang: LOCALE_META[l].htmlLang,
 			href: getAbsoluteLocaleUrl(l, `posts/${entry.id}/`),
@@ -119,7 +132,7 @@ const jsonLd = JSON.stringify({
 			))
 		}
 		{
-			translated && (
+			hasTranslation && (
 				<link
 					rel="alternate"
 					hreflang="x-default"
@@ -183,7 +196,7 @@ const jsonLd = JSON.stringify({
 					{
 						tags.map((tag) => (
 							<li>
-								<a href={tagPath(tagSlug(tag))}>{tag}</a>
+								<a href={tagPath(tagSlug(tag), locale)}>{tag}</a>
 							</li>
 						))
 					}
@@ -235,7 +248,7 @@ const jsonLd = JSON.stringify({
 
 		<footer class="site-footer">
 			<a href={home}>{t("site.name")}</a> — {t("footer.tagline")} ·
-			<a href={tagsIndexPath()}>{t("tags.browse")}</a>
+			<a href={tagsIndexPath(locale)}>{t("tags.browse")}</a>
 		</footer>
 	</body>
 </html>

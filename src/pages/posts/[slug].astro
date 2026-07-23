@@ -1,28 +1,38 @@
 ---
 import { getCollection } from "astro:content";
 import { byDateDesc } from "../../utils/posts";
+import { loadTranslations, translationOf } from "../../utils/translations";
 import PostArticle from "../../components/pages/PostArticle.astro";
 
 /**
  * zh-hant post page. All markup, styling and SEO live in <PostArticle>, shared
  * with the English route under `/en/`; this file only supplies the routing and
- * the newer/older neighbours.
+ * the newer/older neighbours. The translation lookup is passed through so this
+ * page can advertise a reciprocal hreflang once an English version exists.
  */
 export async function getStaticPaths() {
 	// Newest first, same order as the index — so "newer/older" nav matches
 	// what readers see in the universe.
 	const entries = (await getCollection("posts")).sort(byDateDesc);
+	const translations = await loadTranslations();
 	return entries.map((entry, i) => ({
 		params: { slug: entry.id },
 		props: {
 			entry,
 			newer: entries[i - 1] ?? null,
 			older: entries[i + 1] ?? null,
+			translation: translationOf(translations, entry.id, "en"),
 		},
 	}));
 }
 
-const { entry, newer, older } = Astro.props;
+const { entry, newer, older, translation } = Astro.props;
 ---
 
-<PostArticle locale="zh-hant" entry={entry} newer={newer} older={older} />
+<PostArticle
+	locale="zh-hant"
+	entry={entry}
+	newer={newer}
+	older={older}
+	translation={translation}
+/>

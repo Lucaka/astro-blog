@@ -1,27 +1,37 @@
 ---
 import { getCollection } from "astro:content";
 import { byDateDesc } from "../../../utils/posts";
+import { loadTranslations, translationOf } from "../../../utils/translations";
 import PostArticle from "../../../components/pages/PostArticle.astro";
 
 /**
- * English post page. Shares <PostArticle> with the zh-hant route. Content isn't
- * translated yet (Phase 4), so `translated` stays false: the component serves
- * the original body as a fallback, localizes the chrome, and points `canonical`
- * at the zh-hant original. When a translation lands, flip `translated` to true.
+ * English post page. Shares <PostArticle> with the zh-hant route. When a
+ * `<slug>.en.md` sibling exists it renders that real translation (self
+ * canonical + reciprocal hreflang); otherwise it falls back to the original's
+ * content with `canonical` pointing at the zh-hant page. Drop in a translation
+ * file and this page upgrades itself — no code change needed.
  */
 export async function getStaticPaths() {
 	const entries = (await getCollection("posts")).sort(byDateDesc);
+	const translations = await loadTranslations();
 	return entries.map((entry, i) => ({
 		params: { slug: entry.id },
 		props: {
 			entry,
 			newer: entries[i - 1] ?? null,
 			older: entries[i + 1] ?? null,
+			translation: translationOf(translations, entry.id, "en"),
 		},
 	}));
 }
 
-const { entry, newer, older } = Astro.props;
+const { entry, newer, older, translation } = Astro.props;
 ---
 
-<PostArticle locale="en" entry={entry} newer={newer} older={older} />
+<PostArticle
+	locale="en"
+	entry={entry}
+	newer={newer}
+	older={older}
+	translation={translation}
+/>

@@ -142,7 +142,7 @@ const jsonLd = JSON.stringify({
 		}
 		<nav class="post-index" aria-label={t("index.postsNavLabel")}>
 			<h1 class="post-index__title">{t("site.name")}</h1>
-			<a href={tagsIndexPath()}>{t("tags.browseAll")}</a>
+			<a href={tagsIndexPath(locale)}>{t("tags.browseAll")}</a>
 			<ul>
 				{
 					posts.map((post) => (
