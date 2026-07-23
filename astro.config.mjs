@@ -16,6 +16,15 @@ import rehypeExternalLinks from "rehype-external-links";
 export default defineConfig({
   site: "https://www.6ka.dev/",
   base: "/",
+  // i18n routing. `zh-hant` is the default locale and carries NO URL prefix,
+  // so every existing page, feed and indexed link stays exactly where it is;
+  // `en` (served under `/en/`) is additive. Translated UI strings live in
+  // `src/i18n/`, not here — this block only governs routing.
+  i18n: {
+    locales: ["zh-hant", "en"],
+    defaultLocale: "zh-hant",
+    routing: { prefixDefaultLocale: false },
+  },
   integrations: [
     // Expressive Code renders every fenced code block: syntax highlighting
     // (same tokyo-night palette as before), plus a copy button and titles.
@@ -34,7 +43,14 @@ export default defineConfig({
       },
     }),
     vue(),
-    sitemap(),
+    // The English per-post pages are untranslated fallbacks whose canonical
+    // points back at the zh-hant original, so keep them out of the sitemap —
+    // it should list canonical URLs only. The `/en/` landing page (a real
+    // localized alternate) stays in. Drop the filter in Phase 4 once posts are
+    // actually translated and become their own canonical URLs.
+    sitemap({
+      filter: (page) => !/\/en\/posts\//.test(page),
+    }),
   ],
   vite: {
     plugins: [tailwindcss()],

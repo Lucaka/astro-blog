@@ -1,0 +1,27 @@
+---
+import { getCollection } from "astro:content";
+import { byDateDesc } from "../../../utils/posts";
+import PostArticle from "../../../components/pages/PostArticle.astro";
+
+/**
+ * English post page. Shares <PostArticle> with the zh-hant route. Content isn't
+ * translated yet (Phase 4), so `translated` stays false: the component serves
+ * the original body as a fallback, localizes the chrome, and points `canonical`
+ * at the zh-hant original. When a translation lands, flip `translated` to true.
+ */
+export async function getStaticPaths() {
+	const entries = (await getCollection("posts")).sort(byDateDesc);
+	return entries.map((entry, i) => ({
+		params: { slug: entry.id },
+		props: {
+			entry,
+			newer: entries[i - 1] ?? null,
+			older: entries[i + 1] ?? null,
+		},
+	}));
+}
+
+const { entry, newer, older } = Astro.props;
+---
+
+<PostArticle locale="en" entry={entry} newer={newer} older={older} />

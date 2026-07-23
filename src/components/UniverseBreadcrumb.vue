@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Galaxy } from "../utils/galaxies";
+import { useI18n } from "../i18n/vue";
 
 // Where am I: 星系群 › 星系 breadcrumb; the group crumb zooms out.
 defineProps<{
@@ -11,6 +12,8 @@ defineProps<{
 defineEmits<{
   (e: "open-group"): void;
 }>();
+
+const t = useI18n();
 </script>
 
 <template>
@@ -19,7 +22,7 @@ defineEmits<{
   <nav
     class="fixed top-[clamp(14px,3vw,24px)] left-[clamp(16px,3vw,32px)] z-20 flex items-center gap-1.5 rounded-xl border border-white/8 bg-[#0c101c]/35 px-2.5 py-1.5 text-xs text-ink-soft backdrop-blur-[6px] transition-[opacity,transform] duration-[350ms] motion-reduce:transition-none max-sm:top-auto max-sm:bottom-[clamp(58px,14vw,76px)]"
     :class="{ 'pointer-events-none -translate-y-2 opacity-0': hidden }"
-    aria-label="宇宙層級"
+    :aria-label="t('breadcrumb.navLabel')"
   >
     <button
       type="button"
@@ -27,12 +30,13 @@ defineEmits<{
       :disabled="viewMode !== 'galaxy'"
       @click="$emit('open-group')"
     >
-      星系群
+      {{ t("breadcrumb.group") }}
     </button>
     <template v-if="viewMode === 'galaxy' || viewMode === 'toGalaxy'">
       <span class="opacity-50" aria-hidden="true">›</span>
       <span class="opacity-90"
-        >{{ activeGalaxy.name }} · {{ activeGalaxy.era }}</span
+        >{{ t("galaxy.name", { n: activeGalaxy.index }) }} ·
+        {{ activeGalaxy.era }}</span
       >
     </template>
   </nav>

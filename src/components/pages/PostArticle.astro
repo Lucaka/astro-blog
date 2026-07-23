@@ -1,0 +1,536 @@
+---
+import { render, type CollectionEntry } from "astro:content";
+import { getAbsoluteLocaleUrl } from "astro:i18n";
+import { CATEGORY_META } from "../../data/posts";
+import {
+	parseDisplayDate,
+	readingTimeMinutes,
+	postPath,
+	localePrefix,
+} from "../../utils/posts";
+import { useTranslations } from "../../i18n";
+import {
+	LOCALES,
+	LOCALE_META,
+	DEFAULT_LOCALE,
+	type Locale,
+} from "../../i18n/config";
+import LanguageSwitch from "../LanguageSwitch.astro";
+import { tagSlug, tagPath, tagsIndexPath } from "../../utils/tags";
+
+/**
+ * Shared post document, rendered by both `/posts/[slug]` (zh-hant) and
+ * `/en/posts/[slug]`. Until a real translation exists (`translated`), a
+ * non-default locale serves the original's content as a fallback: the chrome
+ * is localized, the body stays in the source language, and `canonical` points
+ * at the original so the duplicate consolidates instead of competing in search.
+ */
+type Entry = CollectionEntry<"posts">;
+interface Props {
+	locale: Locale;
+	entry: Entry;
+	newer: Entry | null;
+	older: Entry | null;
+	/** True once a real translation exists for this locale (Phase 4). */
+	translated?: boolean;
+}
+const { locale, entry, newer, older, translated = false } = Astro.props;
+const t = useTranslations(locale);
+const localeMeta = LOCALE_META[locale];
+
+const { Content } = await render(entry);
+const { title, date, category, tags, summary } = entry.data;
+
+const meta = CATEGORY_META[category];
+const color = "#" + meta.color.toString(16).padStart(6, "0");
+const minutes = readingTimeMinutes(entry.body ?? "");
+const published = parseDisplayDate(date);
+
+// This locale is showing the original's content until a translation lands.
+const isFallback = !translated && locale !== DEFAULT_LOCALE;
+const bodyLang = isFallback ? LOCALE_META[DEFAULT_LOCALE].htmlLang : undefined;
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const prefix = localePrefix(locale);
+const home = `${base}${prefix}/`;
+const feed = `${base}${prefix}/rss.xml`;
+const ogImage = new URL(`${base}/og.png`, Astro.site);
+// Brand identity URL for structured data (locale-agnostic site root).
+const siteUrl = new URL(`${base}/`, Astro.site);
+const isoDate = published.toISOString().slice(0, 10);
+
+// Self URL for this locale; the canonical points at the original for a
+// fallback page so untranslated duplicates don't compete in search.
+const selfUrl = new URL(postPath(entry.id, locale), Astro.site);
+const canonical = isFallback
+	? new URL(postPath(entry.id, DEFAULT_LOCALE), Astro.site)
+	: selfUrl;
+
+// Reciprocal hreflang only once real translations exist (Phase 4). Until then
+// there is no true alternate to advertise.
+const alternates = translated
+	? LOCALES.map((l) => ({
+			hreflang: LOCALE_META[l].htmlLang,
+			href: getAbsoluteLocaleUrl(l, `posts/${entry.id}/`),
+		}))
+	: [];
+
+// Structured data for search engines: this page is a blog post.
+const jsonLd = JSON.stringify({
+	"@context": "https://schema.org",
+	"@type": "BlogPosting",
+	headline: title,
+	description: summary,
+	datePublished: isoDate,
+	// We have no separate "modified" date, so it mirrors the published date.
+	dateModified: isoDate,
+	author: { "@type": "Person", name: "James", url: siteUrl },
+	publisher: {
+		"@type": "Organization",
+		name: t("site.name"),
+		logo: { "@type": "ImageObject", url: ogImage },
+	},
+	keywords: tags.join(", "),
+	articleSection: meta.label,
+	// The body's real language: the source language while falling back.
+	inLanguage: isFallback
+		? LOCALE_META[DEFAULT_LOCALE].htmlLang
+		: localeMeta.htmlLang,
+	image: ogImage,
+	mainEntityOfPage: canonical,
+	url: selfUrl,
+	// JSON.stringify leaves "</" intact, so a title/summary containing
+	// "</script>" could break out of the inline script tag; escape "<".
+}).replace(/</g, "\\u003c");
+---
+
+<html lang={localeMeta.htmlLang}>
+	<head>
+		<meta charset="utf-8" />
+		<link rel="icon" type="image/svg+xml" href={`${base}/favicon.svg`} />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="generator" content={Astro.generator} />
+		<title>{title} {t("post.docTitleSuffix")}</title>
+		<meta name="description" content={summary} />
+		<link rel="canonical" href={canonical} />
+		{
+			alternates.map((a) => (
+				<link rel="alternate" hreflang={a.hreflang} href={a.href} />
+			))
+		}
+		{
+			translated && (
+				<link
+					rel="alternate"
+					hreflang="x-default"
+					href={getAbsoluteLocaleUrl(DEFAULT_LOCALE, `posts/${entry.id}/`)}
+				/>
+			)
+		}
+		<link
+			rel="alternate"
+			type="application/rss+xml"
+			title={t("site.name")}
+			href={feed}
+		/>
+		<meta name="theme-color" content="#05070f" />
+		<link rel="apple-touch-icon" href={`${base}/apple-touch-icon.png`} />
+		<meta property="og:type" content="article" />
+		<meta property="og:locale" content={localeMeta.ogLocale} />
+		<meta property="og:title" content={title} />
+		<meta property="og:description" content={summary} />
+		<meta property="og:url" content={selfUrl} />
+		<meta property="og:site_name" content={t("site.name")} />
+		<meta property="og:image" content={ogImage} />
+		<meta property="og:image:width" content="1200" />
+		<meta property="og:image:height" content="630" />
+		<meta property="og:image:alt" content={t("og.imageAlt")} />
+		<meta property="article:published_time" content={published.toISOString()} />
+		<meta property="article:modified_time" content={published.toISOString()} />
+		<meta property="article:author" content="James" />
+		<meta property="article:section" content={meta.label} />
+		{tags.map((tag) => <meta property="article:tag" content={tag} />)}
+		<meta name="twitter:card" content="summary_large_image" />
+		<meta name="twitter:title" content={title} />
+		<meta name="twitter:description" content={summary} />
+		<meta name="twitter:image" content={ogImage} />
+		<script is:inline type="application/ld+json" set:html={jsonLd} />
+	</head>
+	<body>
+		<a class="skip-link" href="#article">{t("post.skip")}</a>
+
+		<header class="site-header">
+			<a class="back-link" href={home}>{t("post.back")}</a>
+			<div class="site-header__end">
+				<LanguageSwitch locale={locale} path={`posts/${entry.id}/`} />
+				<a class="feed-link" href={feed}>{t("post.rss")}</a>
+			</div>
+		</header>
+
+		<main id="article" class="post">
+			<article>
+				<p class="post__category" style={`color: ${color}`}>
+					<span class="post__dot" style={`background: ${color}`}></span>
+					{meta.label}
+				</p>
+				<h1 class="post__title">{title}</h1>
+				<p class="post__meta">
+					<time datetime={published.toISOString().slice(0, 10)}>{date}</time>
+					<span aria-hidden="true">·</span>
+					{t("post.readingTime", { minutes })}
+				</p>
+				<ul class="post__tags" aria-label={t("post.tagsLabel")}>
+					{
+						tags.map((tag) => (
+							<li>
+								<a href={tagPath(tagSlug(tag))}>{tag}</a>
+							</li>
+						))
+					}
+				</ul>
+				<p class="post__summary">{summary}</p>
+				{
+					isFallback && (
+						<p class="post__untranslated" lang={localeMeta.htmlLang}>
+							{t("post.untranslatedNotice")}
+						</p>
+					)
+				}
+				<div class="post__body" lang={bodyLang}>
+					<Content />
+				</div>
+			</article>
+
+			{
+				(newer || older) && (
+					<nav class="post-nav" aria-label={t("post.navLabel")}>
+						{older ? (
+							<a
+								class="post-nav__link"
+								href={postPath(older.id, locale)}
+								rel="prev"
+							>
+								<span class="post-nav__hint">{t("post.older")}</span>
+								<span class="post-nav__title">{older.data.title}</span>
+							</a>
+						) : (
+							<span class="post-nav__spacer" />
+						)}
+						{newer ? (
+							<a
+								class="post-nav__link post-nav__link--newer"
+								href={postPath(newer.id, locale)}
+								rel="next"
+							>
+								<span class="post-nav__hint">{t("post.newer")}</span>
+								<span class="post-nav__title">{newer.data.title}</span>
+							</a>
+						) : (
+							<span class="post-nav__spacer" />
+						)}
+					</nav>
+				)
+			}
+		</main>
+
+		<footer class="site-footer">
+			<a href={home}>{t("site.name")}</a> — {t("footer.tagline")} ·
+			<a href={tagsIndexPath()}>{t("tags.browse")}</a>
+		</footer>
+	</body>
+</html>
+
+<style is:global>
+	:root {
+		color-scheme: dark;
+	}
+	html,
+	body {
+		margin: 0;
+		padding: 0;
+		background: radial-gradient(
+			ellipse at 50% -10%,
+			#131a30 0%,
+			#05070f 60%,
+			#000 100%
+		);
+		min-height: 100vh;
+		color: #eef2ff;
+		font-family:
+			ui-sans-serif,
+			system-ui,
+			-apple-system,
+			"Segoe UI",
+			Roboto,
+			sans-serif;
+	}
+
+	.skip-link {
+		position: absolute;
+		left: -9999px;
+		top: 0;
+		padding: 8px 14px;
+		background: #1b2440;
+		color: #fff;
+		border-radius: 0 0 8px 0;
+		z-index: 10;
+	}
+	.skip-link:focus {
+		left: 0;
+	}
+
+	.site-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		max-width: 720px;
+		margin: 0 auto;
+		padding: 24px clamp(20px, 5vw, 32px) 0;
+	}
+	.site-header a,
+	.site-footer a {
+		color: #8ab4ff;
+		text-decoration: none;
+	}
+	.site-header a:hover,
+	.site-footer a:hover {
+		text-decoration: underline;
+	}
+	.site-header__end {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+	}
+	.feed-link {
+		font-size: 13px;
+		opacity: 0.8;
+	}
+
+	.post__untranslated {
+		margin: 0 0 20px;
+		padding: 10px 14px;
+		border-radius: 10px;
+		border: 1px solid rgba(255, 204, 102, 0.25);
+		border-left: 3px solid #ffcc66;
+		background: rgba(255, 204, 102, 0.06);
+		font-size: 14px;
+		line-height: 1.6;
+		opacity: 0.92;
+	}
+
+	.post {
+		max-width: 720px;
+		margin: 0 auto;
+		padding: clamp(28px, 6vw, 56px) clamp(20px, 5vw, 32px) 48px;
+	}
+	.post__category {
+		display: inline-flex;
+		align-items: center;
+		gap: 7px;
+		margin: 0;
+		font-size: 13px;
+		font-weight: 600;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+	}
+	.post__dot {
+		width: 8px;
+		height: 8px;
+		border-radius: 50%;
+	}
+	.post__title {
+		margin: 14px 0 8px;
+		font-size: clamp(28px, 5vw, 38px);
+		font-weight: 700;
+		line-height: 1.2;
+	}
+	.post__meta {
+		margin: 0;
+		font-size: 14px;
+		opacity: 0.6;
+		display: flex;
+		gap: 8px;
+	}
+	.post__tags {
+		margin: 18px 0;
+		padding: 0;
+		list-style: none;
+		display: flex;
+		flex-wrap: wrap;
+		gap: 8px;
+	}
+	.post__tags li {
+		font-size: 12px;
+	}
+	.post__tags a {
+		display: inline-block;
+		padding: 3px 10px;
+		border-radius: 8px;
+		background: rgba(255, 255, 255, 0.07);
+		border: 1px solid rgba(255, 255, 255, 0.08);
+		color: #cdd8ff;
+		text-decoration: none;
+		transition:
+			background 0.15s ease,
+			border-color 0.15s ease;
+	}
+	.post__tags a:hover,
+	.post__tags a:focus-visible {
+		background: rgba(138, 180, 255, 0.16);
+		border-color: rgba(138, 180, 255, 0.4);
+		color: #eaf1ff;
+		outline: none;
+	}
+	.post__summary {
+		margin: 8px 0 24px;
+		font-size: 17px;
+		line-height: 1.6;
+		opacity: 0.92;
+	}
+	.post__body {
+		font-size: 16px;
+		line-height: 1.85;
+		opacity: 0.88;
+	}
+	.post__body p {
+		margin: 0 0 14px;
+	}
+	.post__body strong {
+		color: #fff;
+		font-weight: 600;
+	}
+	.post__body h2,
+	.post__body h3 {
+		margin: 28px 0 10px;
+		line-height: 1.3;
+		color: #fff;
+	}
+	/* Heading anchor: a faint "#" that appears when you hover the heading. */
+	.post__body .heading-anchor {
+		margin-left: 8px;
+		color: #8ab4ff;
+		text-decoration: none;
+		opacity: 0;
+		transition: opacity 0.15s ease;
+	}
+	.post__body h2:hover .heading-anchor,
+	.post__body h3:hover .heading-anchor,
+	.post__body .heading-anchor:focus-visible {
+		opacity: 0.7;
+	}
+	.post__body ul,
+	.post__body ol {
+		margin: 0 0 14px;
+		padding-left: 22px;
+	}
+	.post__body li {
+		margin: 5px 0;
+	}
+	.post__body blockquote {
+		margin: 14px 0;
+		padding: 8px 16px;
+		border-left: 2px solid rgba(255, 255, 255, 0.25);
+		opacity: 0.8;
+		font-style: italic;
+	}
+	.post__body a {
+		color: #8ab4ff;
+	}
+	.post__body code {
+		padding: 1px 5px;
+		border-radius: 5px;
+		background: rgba(255, 255, 255, 0.1);
+		font-size: 0.9em;
+	}
+	/* Code blocks are rendered by Expressive Code (its own frame + copy button).
+	   Give it room and stop the inline-code pill leaking onto its lines. */
+	.post__body .expressive-code {
+		margin: 0 0 16px;
+	}
+	.post__body .expressive-code code {
+		padding: 0;
+		background: none;
+		border-radius: 0;
+		font-size: inherit;
+	}
+
+	/* Callouts: :::info / :::warning turned into <aside> by remark-callouts. */
+	.post__body .callout {
+		margin: 18px 0;
+		padding: 12px 16px;
+		border-radius: 10px;
+		border: 1px solid rgba(255, 255, 255, 0.1);
+		border-left-width: 3px;
+		background: rgba(255, 255, 255, 0.04);
+	}
+	.post__body .callout > :last-child {
+		margin-bottom: 0;
+	}
+	.post__body .callout__label {
+		margin: 0 0 6px;
+		font-size: 12px;
+		font-weight: 600;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+		opacity: 0.9;
+	}
+	.post__body .callout--info {
+		border-left-color: #8ab4ff;
+	}
+	.post__body .callout--info .callout__label {
+		color: #8ab4ff;
+	}
+	.post__body .callout--warning {
+		border-left-color: #ffcc66;
+		background: rgba(255, 204, 102, 0.06);
+	}
+	.post__body .callout--warning .callout__label {
+		color: #ffcc66;
+	}
+
+	.post-nav {
+		display: flex;
+		justify-content: space-between;
+		gap: 16px;
+		margin-top: 40px;
+		padding-top: 24px;
+		border-top: 1px solid rgba(255, 255, 255, 0.1);
+	}
+	.post-nav__link {
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+		max-width: 46%;
+		color: #eef2ff;
+		text-decoration: none;
+	}
+	.post-nav__link--newer {
+		text-align: right;
+		margin-left: auto;
+	}
+	.post-nav__hint {
+		font-size: 12px;
+		color: #8ab4ff;
+	}
+	.post-nav__title {
+		font-size: 14px;
+		line-height: 1.4;
+		opacity: 0.85;
+	}
+	.post-nav__link:hover .post-nav__title,
+	.post-nav__link:focus-visible .post-nav__title {
+		opacity: 1;
+		text-decoration: underline;
+	}
+	.post-nav__spacer {
+		flex: 1;
+	}
+
+	.site-footer {
+		max-width: 720px;
+		margin: 0 auto;
+		padding: 0 clamp(20px, 5vw, 32px) 40px;
+		font-size: 13px;
+		opacity: 0.6;
+	}
+</style>

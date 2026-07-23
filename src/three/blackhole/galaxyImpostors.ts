@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { createGlowSpriteTexture } from "./particleTexture";
 import type { Galaxy } from "../../utils/galaxies";
+import type { TranslateFn } from "../../i18n";
 
 /**
  * Group-view impostors: in the zoomed-out "galaxy group" view each galaxy is
@@ -46,7 +47,11 @@ const SPACING = 26;
 /** Per-galaxy tints so volumes are telling apart at a glance. */
 const TINTS = [0x8ab4ff, 0xffd54a, 0xb07cff, 0x5fe6d0, 0xff9d6f, 0xf0f0f0];
 
-function createLabelTexture(galaxy: Galaxy, isActive: boolean): THREE.CanvasTexture {
+function createLabelTexture(
+  galaxy: Galaxy,
+  isActive: boolean,
+  t: TranslateFn,
+): THREE.CanvasTexture {
   const canvas = document.createElement("canvas");
   canvas.width = 512;
   canvas.height = 160;
@@ -56,18 +61,26 @@ function createLabelTexture(galaxy: Galaxy, isActive: boolean): THREE.CanvasText
   ctx.fillStyle = isActive ? "#ffffff" : "rgba(238, 242, 255, 0.9)";
   ctx.font =
     "600 42px ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
-  ctx.fillText(galaxy.name + (isActive ? "（目前）" : ""), 256, 52);
+  const name = t("galaxy.name", { n: galaxy.index });
+  ctx.fillText(name + (isActive ? t("galaxy.current") : ""), 256, 52);
   ctx.fillStyle = "rgba(178, 192, 232, 0.85)";
   ctx.font =
     "28px ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
-  ctx.fillText(`${galaxy.era} · ${galaxy.posts.length} 顆星`, 256, 110);
+  ctx.fillText(
+    `${galaxy.era} · ${t("galaxy.starCount", { count: galaxy.posts.length })}`,
+    256,
+    110,
+  );
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   return texture;
 }
 
-export function createGalaxyImpostors(galaxies: Galaxy[]): GalaxyImpostors {
+export function createGalaxyImpostors(
+  galaxies: Galaxy[],
+  t: TranslateFn,
+): GalaxyImpostors {
   const group = new THREE.Group();
   const glowTexture = createGlowSpriteTexture();
 
@@ -137,7 +150,7 @@ export function createGalaxyImpostors(galaxies: Galaxy[]): GalaxyImpostors {
 
     const label = new THREE.Sprite(
       new THREE.SpriteMaterial({
-        map: createLabelTexture(galaxy, false),
+        map: createLabelTexture(galaxy, false, t),
         transparent: true,
         depthWrite: false,
         opacity: 1,
@@ -205,7 +218,7 @@ export function createGalaxyImpostors(galaxies: Galaxy[]): GalaxyImpostors {
 
       const isActive = i === activeIndex;
       im.label.material.map?.dispose();
-      im.label.material.map = createLabelTexture(im.galaxy, isActive);
+      im.label.material.map = createLabelTexture(im.galaxy, isActive, t);
       im.label.material.needsUpdate = true;
       im.core.material.opacity = isActive ? 1 : 0.9;
     });

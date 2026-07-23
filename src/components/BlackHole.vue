@@ -26,6 +26,8 @@ import {
   findGalaxyOf,
   type Galaxy,
 } from "../utils/galaxies";
+import { provideI18n } from "../i18n/vue";
+import type { Locale } from "../i18n/config";
 
 import UniverseBreadcrumb from "./UniverseBreadcrumb.vue";
 import PostListSidebar from "./PostListSidebar.vue";
@@ -36,8 +38,11 @@ import InfoGuide from "./InfoGuide.vue";
 import StarTooltip from "./StarTooltip.vue";
 import ReadingPanel from "./ReadingPanel.vue";
 
-// Post metadata comes from the Markdown content collection via index.astro.
-const props = defineProps<{ posts: Post[] }>();
+// Post metadata comes from the Markdown content collection via index.astro,
+// along with the active locale. Provide one locale-bound `t` to every child
+// component in the island (breadcrumb, sidebar, guide, panels…).
+const props = defineProps<{ posts: Post[]; locale: Locale }>();
+const t = provideI18n(props.locale);
 
 // `?demo=N` appends N synthetic posts (client-side only) so the multi-galaxy
 // group view and its transitions can be exercised before the real archive
@@ -50,11 +55,11 @@ function makeDemoPosts(): Post[] {
   const categories = Object.keys(CATEGORY_META) as PostCategory[];
   return Array.from({ length: count }, (_, i) => ({
     slug: `demo-${i + 1}`,
-    title: `演示文章 ${i + 1}`,
+    title: t("demo.title", { n: i + 1 }),
     date: `${2019 + Math.floor(i / 18)}.${String((i % 12) + 1).padStart(2, "0")}`,
     category: categories[i % categories.length],
     tags: ["demo"],
-    summary: "?demo 模式的假資料，用來測試多星系視角。",
+    summary: t("demo.summary"),
   }));
 }
 
@@ -68,7 +73,6 @@ const activeGalaxy = ref<Galaxy>(
   galaxies[galaxies.length - 1] ?? {
     id: "galaxy-1",
     index: 1,
-    name: "第 1 星系",
     era: "—",
     posts: [],
   },
@@ -136,7 +140,11 @@ function openPost(post: Post, pushHistory = true) {
     document.getElementById(`post-body-${post.slug}`)?.innerHTML ?? "";
   selectedPost.value = post;
   if (pushHistory) {
-    history.pushState({ universe: post.slug }, "", postPath(post.slug));
+    history.pushState(
+      { universe: post.slug },
+      "",
+      postPath(post.slug, props.locale),
+    );
   }
 }
 function closeModal() {
@@ -259,7 +267,7 @@ onMounted(() => {
   let contentStars = createContentStars(activeGalaxy.value.posts);
   galaxyScene.add(contentStars.group);
 
-  const impostors = createGalaxyImpostors(galaxies);
+  const impostors = createGalaxyImpostors(galaxies, t);
   impostors.setActive(activeGalaxy.value.id);
   impostors.group.visible = false;
 
@@ -996,12 +1004,10 @@ onMounted(() => {
     />
 
     <!-- First-visit hint: one quiet line, gone after a moment or a touch. -->
-    <HintToast :show="showHint">拖曳探索宇宙 · 點擊星星閱讀文章</HintToast>
+    <HintToast :show="showHint">{{ t("hint.explore") }}</HintToast>
 
     <!-- Group view hint: how to get back into a galaxy. -->
-    <HintToast :show="viewMode === 'group'"
-      >點擊星系進入 · 滾輪放大返回</HintToast
-    >
+    <HintToast :show="viewMode === 'group'">{{ t("hint.group") }}</HintToast>
 
     <!-- Exit pill: parked at the zoom wall — keep scrolling to leave. -->
     <ExitChargePill :visible="nearExitWall" :progress="exitProgress" />
@@ -1014,7 +1020,7 @@ onMounted(() => {
       v-if="hoveredPost && !selectedPost && hoverStyle"
       :position="hoverStyle"
       :title="hoveredPost.title"
-      :meta="postMeta(hoveredPost)"
+      :meta="postMeta(hoveredPost, t)"
       :tags="hoveredPost.tags"
     />
 
@@ -1022,8 +1028,8 @@ onMounted(() => {
     <StarTooltip
       v-if="hoveredGalaxy && hoverStyle && viewMode === 'group'"
       :position="hoverStyle"
-      :title="hoveredGalaxy.name"
-      :meta="`${hoveredGalaxy.era} · ${hoveredGalaxy.posts.length} 篇文章`"
+      :title="t('galaxy.name', { n: hoveredGalaxy.index })"
+      :meta="`${hoveredGalaxy.era} · ${t('galaxy.postCount', { count: hoveredGalaxy.posts.length })}`"
     />
 
     <!-- Reading panel: glassmorphism card shown when a post is open. -->

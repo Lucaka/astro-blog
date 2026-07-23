@@ -12,10 +12,13 @@ export const GALAXY_CAPACITY = 40;
 
 export interface Galaxy {
   id: string;
-  /** 1-based volume number, chronological (galaxy 1 holds the oldest posts). */
+  /**
+   * 1-based volume number, chronological (galaxy 1 holds the oldest posts).
+   * The display name ("第 2 星系" / "Galaxy 2") is formatted at render time
+   * from this index via the `galaxy.name` UI string, so the data stays
+   * locale-free.
+   */
   index: number;
-  /** Display name, e.g. "第 2 星系". */
-  name: string;
   /** Year range of its posts, e.g. "2024–2025". */
   era: string;
   /** The galaxy's posts, newest first (same ordering the index page uses). */
@@ -48,7 +51,6 @@ export function partitionIntoGalaxies(
     galaxies.push({
       id: `galaxy-${index}`,
       index,
-      name: `第 ${index} 星系`,
       era: firstYear === lastYear ? `${firstYear}` : `${firstYear}–${lastYear}`,
       posts: chunk.slice().reverse(),
     });
