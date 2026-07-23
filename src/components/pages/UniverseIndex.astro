@@ -19,6 +19,7 @@ import {
 	DEFAULT_LOCALE,
 	type Locale,
 } from "../../i18n/config";
+import { tagsIndexPath } from "../../utils/tags";
 
 /**
  * Shared landing page: the 3D universe island plus the JS-free, indexable
@@ -63,6 +64,8 @@ const ogImage = new URL(`${base}/og.png`, Astro.site);
 const home = `${base}${localePrefix(locale)}/`;
 const canonical = new URL(home, Astro.site);
 const feed = `${base}${localePrefix(locale)}/rss.xml`;
+// Brand identity URL for structured data (locale-agnostic site root).
+const siteUrl = new URL(`${base}/`, Astro.site);
 
 // Reciprocal hreflang for the localized landing pages, x-default -> zh-hant.
 const alternates = LOCALES.map((l) => ({
@@ -79,6 +82,7 @@ const jsonLd = JSON.stringify({
 	url: canonical,
 	description,
 	inLanguage: localeMeta.htmlLang,
+	author: { "@type": "Person", name: "James", url: siteUrl },
 	blogPost: posts.map((post) => ({
 		"@type": "BlogPosting",
 		headline: post.title,
@@ -97,7 +101,7 @@ const jsonLd = JSON.stringify({
 		<link rel="icon" type="image/svg+xml" href={`${base}/favicon.svg`} />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<meta name="generator" content={Astro.generator} />
-		<title>{t("site.name")}</title>
+		<title>{t("index.docTitle")}</title>
 		<meta name="description" content={description} />
 		<link rel="canonical" href={canonical} />
 		{
@@ -125,6 +129,9 @@ const jsonLd = JSON.stringify({
 		<meta property="og:image:height" content="630" />
 		<meta property="og:image:alt" content={t("og.imageAlt")} />
 		<meta name="twitter:card" content="summary_large_image" />
+		<meta name="twitter:title" content={t("site.name")} />
+		<meta name="twitter:description" content={description} />
+		<meta name="twitter:image" content={ogImage} />
 		<script is:inline type="application/ld+json" set:html={jsonLd} />
 	</head>
 	<body>
@@ -135,6 +142,7 @@ const jsonLd = JSON.stringify({
 		}
 		<nav class="post-index" aria-label={t("index.postsNavLabel")}>
 			<h1 class="post-index__title">{t("site.name")}</h1>
+			<a href={tagsIndexPath()}>{t("tags.browseAll")}</a>
 			<ul>
 				{
 					posts.map((post) => (

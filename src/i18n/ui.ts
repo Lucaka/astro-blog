@@ -20,8 +20,13 @@ export const UI = {
     "footer.tagline": "在宇宙裡探索所有文章",
 
     // Index page
+    "index.docTitle": "James Universe — 前端、圖學與隨筆的 3D 宇宙部落格",
     "index.postsNavLabel": "所有文章",
     "index.loadingSub": "正在點亮星空…",
+
+    // Tags
+    "tags.browseAll": "瀏覽所有標籤",
+    "tags.browse": "瀏覽標籤",
 
     // 404 page
     "notFound.docTitle": "404 — James Universe",
@@ -110,8 +115,14 @@ export const UI = {
     "footer.tagline": "explore every article across the universe",
 
     // Index page
+    "index.docTitle":
+      "James Universe — a 3D universe blog on front-end, graphics & essays",
     "index.postsNavLabel": "All articles",
     "index.loadingSub": "Lighting up the stars…",
+
+    // Tags
+    "tags.browseAll": "Browse all tags",
+    "tags.browse": "Browse tags",
 
     // 404 page
     "notFound.docTitle": "404 — James Universe",

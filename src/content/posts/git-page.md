@@ -2,7 +2,7 @@
 title: Git Page
 date: "2025.10.09"
 category: frontend
-tags: ["Git Page"]
+tags: ["GitHub Pages"]
 summary: 將dist 資料夾內的東西推至 指定github 分支
 ---
 

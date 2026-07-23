@@ -2,7 +2,7 @@
 title: Lib｜protobuf
 date: "2024.06.11"
 category: frontend
-tags: ["JS", "Lib"]
+tags: ["JS", "Library"]
 summary: Protocol Buffers are a language-neutral, platform-neutral, extensible …
 ---
 
