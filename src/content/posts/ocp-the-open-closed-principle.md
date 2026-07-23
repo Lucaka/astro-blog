@@ -2,7 +2,7 @@
 title: SOLID五大原則｜開閉原則 OCP (The Open/Closed Principle)
 date: "2023.12.15"
 category: frontend
-tags: ["SOLID五大原則"]
+tags: ["SOLID"]
 summary: 開閉原則OCP（開放/封閉原則）的描述是：
 ---
 

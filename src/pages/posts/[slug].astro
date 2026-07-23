@@ -2,6 +2,7 @@
 import { getCollection, render } from "astro:content";
 import { CATEGORY_META } from "../../data/posts";
 import { byDateDesc, parseDisplayDate, readingTimeMinutes, postPath } from "../../utils/posts";
+import { tagSlug, tagPath, tagsIndexPath } from "../../utils/tags";
 
 /**
  * Real, statically generated page for every post: shareable, indexable,
@@ -31,13 +32,25 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const canonical = new URL(postPath(entry.id), Astro.site);
 const ogImage = new URL(`${base}/og.png`, Astro.site);
 
-// Structured data for search engines: this page is a blog post.
+const siteUrl = new URL(`${base}/`, Astro.site);
+const isoDate = published.toISOString().slice(0, 10);
+
+// Structured data for search engines: this page is a blog post. Google's
+// article guidelines ask for author, publisher and dateModified — we have no
+// separate "modified" date, so it mirrors the published date.
 const jsonLd = JSON.stringify({
   "@context": "https://schema.org",
   "@type": "BlogPosting",
   headline: title,
   description: summary,
-  datePublished: published.toISOString().slice(0, 10),
+  datePublished: isoDate,
+  dateModified: isoDate,
+  author: { "@type": "Person", name: "James", url: siteUrl },
+  publisher: {
+    "@type": "Organization",
+    name: "James Universe",
+    logo: { "@type": "ImageObject", url: ogImage },
+  },
   keywords: tags.join(", "),
   articleSection: meta.label,
   inLanguage: "zh-Hant",
@@ -77,8 +90,14 @@ const jsonLd = JSON.stringify({
 		<meta property="og:image:height" content="630" />
 		<meta property="og:image:alt" content="James Universe — 3D 宇宙部落格的黑洞星空" />
 		<meta property="article:published_time" content={published.toISOString()} />
+		<meta property="article:modified_time" content={published.toISOString()} />
+		<meta property="article:author" content="James" />
+		<meta property="article:section" content={meta.label} />
 		{tags.map((tag) => <meta property="article:tag" content={tag} />)}
 		<meta name="twitter:card" content="summary_large_image" />
+		<meta name="twitter:title" content={title} />
+		<meta name="twitter:description" content={summary} />
+		<meta name="twitter:image" content={ogImage} />
 		<script is:inline type="application/ld+json" set:html={jsonLd} />
 	</head>
 	<body>
@@ -102,7 +121,11 @@ const jsonLd = JSON.stringify({
 					約 {minutes} 分鐘
 				</p>
 				<ul class="post__tags" aria-label="標籤">
-					{tags.map((tag) => <li>{tag}</li>)}
+					{tags.map((tag) => (
+						<li>
+							<a href={tagPath(tagSlug(tag))}>{tag}</a>
+						</li>
+					))}
 				</ul>
 				<p class="post__summary">{summary}</p>
 				<div class="post__body">
@@ -133,7 +156,8 @@ const jsonLd = JSON.stringify({
 		</main>
 
 		<footer class="site-footer">
-			<a href={`${base}/`}>James Universe</a> — 在宇宙裡探索所有文章
+			<a href={`${base}/`}>James Universe</a> — 在宇宙裡探索所有文章 ·
+			<a href={tagsIndexPath()}>瀏覽標籤</a>
 		</footer>
 	</body>
 </html>
@@ -232,10 +256,25 @@ const jsonLd = JSON.stringify({
 	}
 	.post__tags li {
 		font-size: 12px;
+	}
+	.post__tags a {
+		display: inline-block;
 		padding: 3px 10px;
 		border-radius: 8px;
 		background: rgba(255, 255, 255, 0.07);
 		border: 1px solid rgba(255, 255, 255, 0.08);
+		color: #cdd8ff;
+		text-decoration: none;
+		transition:
+			background 0.15s ease,
+			border-color 0.15s ease;
+	}
+	.post__tags a:hover,
+	.post__tags a:focus-visible {
+		background: rgba(138, 180, 255, 0.16);
+		border-color: rgba(138, 180, 255, 0.4);
+		color: #eaf1ff;
+		outline: none;
 	}
 	.post__summary {
 		margin: 8px 0 24px;

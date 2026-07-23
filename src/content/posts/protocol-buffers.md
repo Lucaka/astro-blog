@@ -2,7 +2,7 @@
 title: Lib｜Protocol Buffers 的使用場景
 date: "2024.09.07"
 category: frontend
-tags: ["JS", "Lib"]
+tags: ["JS", "Library"]
 summary: 若在純粹的 Web 應用下，大多數情況，我們不需要處理二進位資料，或是需要非常精準的資料格式，也不會進行單筆高流量的資料交換，所以使用 JS…
 ---
 

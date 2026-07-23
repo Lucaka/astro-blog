@@ -2,7 +2,7 @@
 title: other｜Deno
 date: "2025.10.28"
 category: frontend
-tags: ["other"]
+tags: ["Deno"]
 summary: Deno 環境使用ES modules
 ---
 

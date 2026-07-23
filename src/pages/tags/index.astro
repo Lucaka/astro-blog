@@ -1,0 +1,218 @@
+---
+import { getCollection } from "astro:content";
+import { tagSlug, tagPath } from "../../utils/tags";
+
+/**
+ * The tag directory: a single crawlable hub linking to every per-tag page.
+ * This is what gives the tag cluster internal links from one place (the post
+ * pages link individual tags; this lists them all). Sorted by frequency so the
+ * biggest topics lead, then alphabetically for a stable order.
+ */
+const entries = await getCollection("posts");
+
+const counts = new Map();
+for (const entry of entries) {
+	for (const tag of entry.data.tags) {
+		counts.set(tag, (counts.get(tag) ?? 0) + 1);
+	}
+}
+
+const tags = [...counts.entries()]
+	.map(([tag, count]) => ({ tag, count, slug: tagSlug(tag) }))
+	.sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag));
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const canonical = new URL(`${base}/tags/`, Astro.site);
+const ogImage = new URL(`${base}/og.png`, Astro.site);
+const description = `James Universe 的所有文章標籤,共 ${tags.length} 個主題。`;
+
+const jsonLd = JSON.stringify({
+	"@context": "https://schema.org",
+	"@type": "CollectionPage",
+	name: "所有標籤 — James Universe",
+	description,
+	url: canonical,
+	inLanguage: "zh-Hant",
+	isPartOf: {
+		"@type": "Blog",
+		name: "James Universe",
+		url: new URL(`${base}/`, Astro.site),
+	},
+}).replace(/</g, "\\u003c");
+---
+
+<html lang="zh-Hant">
+	<head>
+		<meta charset="utf-8" />
+		<link rel="icon" type="image/svg+xml" href={`${base}/favicon.svg`} />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="generator" content={Astro.generator} />
+		<title>所有標籤 — James Universe</title>
+		<meta name="description" content={description} />
+		<link rel="canonical" href={canonical} />
+		<link
+			rel="alternate"
+			type="application/rss+xml"
+			title="James Universe"
+			href={`${base}/rss.xml`}
+		/>
+		<meta name="theme-color" content="#05070f" />
+		<link rel="apple-touch-icon" href={`${base}/apple-touch-icon.png`} />
+		<meta property="og:type" content="website" />
+		<meta property="og:locale" content="zh_TW" />
+		<meta property="og:site_name" content="James Universe" />
+		<meta property="og:title" content="所有標籤 — James Universe" />
+		<meta property="og:description" content={description} />
+		<meta property="og:url" content={canonical} />
+		<meta property="og:image" content={ogImage} />
+		<meta property="og:image:width" content="1200" />
+		<meta property="og:image:height" content="630" />
+		<meta
+			property="og:image:alt"
+			content="James Universe — 3D 宇宙部落格的黑洞星空"
+		/>
+		<meta name="twitter:card" content="summary_large_image" />
+		<meta name="twitter:title" content="所有標籤 — James Universe" />
+		<meta name="twitter:description" content={description} />
+		<meta name="twitter:image" content={ogImage} />
+		<script is:inline type="application/ld+json" set:html={jsonLd} />
+	</head>
+	<body>
+		<header class="site-header">
+			<a class="back-link" href={`${base}/`}>← 返回宇宙</a>
+			<a class="feed-link" href={`${base}/rss.xml`}>RSS</a>
+		</header>
+
+		<main class="tags-index">
+			<h1 class="tags-index__title">所有標籤</h1>
+			<p class="tags-index__sub">{tags.length} 個主題 · 點一個標籤看相關文章</p>
+
+			<ul class="tag-cloud">
+				{
+					tags.map(({ tag, count, slug }) => (
+						<li>
+							<a class="tag-cloud__link" href={tagPath(slug)}>
+								<span class="tag-cloud__name">{tag}</span>
+								<span class="tag-cloud__count">{count}</span>
+							</a>
+						</li>
+					))
+				}
+			</ul>
+		</main>
+
+		<footer class="site-footer">
+			<a href={`${base}/`}>James Universe</a> — 在宇宙裡探索所有文章
+		</footer>
+	</body>
+</html>
+
+<style is:global>
+	:root {
+		color-scheme: dark;
+	}
+	html,
+	body {
+		margin: 0;
+		padding: 0;
+		background: radial-gradient(
+			ellipse at 50% -10%,
+			#131a30 0%,
+			#05070f 60%,
+			#000 100%
+		);
+		min-height: 100vh;
+		color: #eef2ff;
+		font-family:
+			ui-sans-serif,
+			system-ui,
+			-apple-system,
+			"Segoe UI",
+			Roboto,
+			sans-serif;
+	}
+
+	.site-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		max-width: 760px;
+		margin: 0 auto;
+		padding: 24px clamp(20px, 5vw, 32px) 0;
+	}
+	.site-header a,
+	.site-footer a {
+		color: #8ab4ff;
+		text-decoration: none;
+	}
+	.site-header a:hover,
+	.site-footer a:hover {
+		text-decoration: underline;
+	}
+	.feed-link {
+		font-size: 13px;
+		opacity: 0.8;
+	}
+
+	.tags-index {
+		max-width: 760px;
+		margin: 0 auto;
+		padding: clamp(28px, 6vw, 56px) clamp(20px, 5vw, 32px) 48px;
+	}
+	.tags-index__title {
+		margin: 0 0 4px;
+		font-size: clamp(28px, 5vw, 38px);
+		font-weight: 700;
+	}
+	.tags-index__sub {
+		margin: 0 0 28px;
+		font-size: 14px;
+		opacity: 0.6;
+	}
+
+	.tag-cloud {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		display: flex;
+		flex-wrap: wrap;
+		gap: 10px;
+	}
+	.tag-cloud__link {
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+		padding: 8px 14px;
+		border-radius: 10px;
+		background: rgba(255, 255, 255, 0.05);
+		border: 1px solid rgba(255, 255, 255, 0.08);
+		color: #eef2ff;
+		text-decoration: none;
+		font-size: 14px;
+		transition:
+			background 0.15s ease,
+			border-color 0.15s ease;
+	}
+	.tag-cloud__link:hover,
+	.tag-cloud__link:focus-visible {
+		background: rgba(255, 255, 255, 0.09);
+		border-color: rgba(255, 255, 255, 0.2);
+		outline: none;
+	}
+	.tag-cloud__count {
+		font-size: 12px;
+		font-variant-numeric: tabular-nums;
+		padding: 1px 7px;
+		border-radius: 999px;
+		background: rgba(138, 180, 255, 0.16);
+		color: #b9d1ff;
+	}
+
+	.site-footer {
+		max-width: 760px;
+		margin: 0 auto;
+		padding: 0 clamp(20px, 5vw, 32px) 40px;
+		font-size: 13px;
+		opacity: 0.6;
+	}
+</style>
