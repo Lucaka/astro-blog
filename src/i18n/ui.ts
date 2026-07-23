@@ -27,6 +27,16 @@ export const UI = {
     // Tags
     "tags.browseAll": "瀏覽所有標籤",
     "tags.browse": "瀏覽標籤",
+    "tags.allTitle": "所有標籤",
+    "tags.indexDescription":
+      "James Universe 的所有文章標籤,共 {count} 個主題。",
+    "tags.indexSub": "{count} 個主題 · 點一個標籤看相關文章",
+    "tags.eyebrow": "標籤",
+    "tags.skipToList": "跳到文章清單",
+    "tags.postCount": "共 {count} 篇文章",
+    "tags.pageLabel": "標籤:{tag}",
+    "tags.pageDescription":
+      "所有標記「{tag}」的文章,共 {count} 篇 — James Universe。",
 
     // 404 page
     "notFound.docTitle": "404 — James Universe",
@@ -123,6 +133,16 @@ export const UI = {
     // Tags
     "tags.browseAll": "Browse all tags",
     "tags.browse": "Browse tags",
+    "tags.allTitle": "All tags",
+    "tags.indexDescription":
+      "All article tags on James Universe — {count} topics.",
+    "tags.indexSub": "{count} topics · pick a tag to see related articles",
+    "tags.eyebrow": "Tags",
+    "tags.skipToList": "Skip to the article list",
+    "tags.postCount": "{count} articles",
+    "tags.pageLabel": "Tag: {tag}",
+    "tags.pageDescription":
+      "All articles tagged “{tag}” — {count} in total, on James Universe.",
 
     // 404 page
     "notFound.docTitle": "404 — James Universe",

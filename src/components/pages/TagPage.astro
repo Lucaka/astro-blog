@@ -1,0 +1,336 @@
+---
+import type { CollectionEntry } from "astro:content";
+import { getAbsoluteLocaleUrl } from "astro:i18n";
+import { CATEGORY_META } from "../../data/posts";
+import { postPath, localePrefix } from "../../utils/posts";
+import { tagSlug, tagPath, tagsIndexPath } from "../../utils/tags";
+import { useTranslations } from "../../i18n";
+import {
+	LOCALES,
+	LOCALE_META,
+	DEFAULT_LOCALE,
+	type Locale,
+} from "../../i18n/config";
+import LanguageSwitch from "../LanguageSwitch.astro";
+
+type PostEntry = CollectionEntry<"posts">;
+
+/**
+ * One static, indexable page per tag: a topic-cluster landing page that lists
+ * every post carrying the tag, newest first. Shared by the zh-hant
+ * `/tags/[tag]/` and English `/en/tags/[tag]/`; the listed post titles aren't
+ * translated, but the chrome is, so the two are advertised as reciprocal
+ * hreflang alternates. `getStaticPaths` lives in the page wrappers.
+ */
+interface Props {
+	locale: Locale;
+	tag: string;
+	posts: PostEntry[];
+}
+const { locale, tag, posts } = Astro.props;
+const t = useTranslations(locale);
+const localeMeta = LOCALE_META[locale];
+const slug = tagSlug(tag);
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const home = `${base}${localePrefix(locale)}/`;
+const feed = `${base}${localePrefix(locale)}/rss.xml`;
+const canonical = new URL(tagPath(slug, locale), Astro.site);
+const ogImage = new URL(`${base}/og.png`, Astro.site);
+const description = t("tags.pageDescription", { tag, count: posts.length });
+const pageLabel = t("tags.pageLabel", { tag });
+const docTitle = `${pageLabel} ${t("post.docTitleSuffix")}`;
+
+const alternates = LOCALES.map((l) => ({
+	hreflang: LOCALE_META[l].htmlLang,
+	href: getAbsoluteLocaleUrl(l, `tags/${slug}/`),
+}));
+const xDefaultHref = getAbsoluteLocaleUrl(DEFAULT_LOCALE, `tags/${slug}/`);
+
+// Structured data: a collection page listing the tagged posts.
+const jsonLd = JSON.stringify({
+	"@context": "https://schema.org",
+	"@type": "CollectionPage",
+	name: pageLabel,
+	description,
+	url: canonical,
+	inLanguage: localeMeta.htmlLang,
+	isPartOf: {
+		"@type": "Blog",
+		name: t("site.name"),
+		url: new URL(home, Astro.site),
+	},
+	mainEntity: {
+		"@type": "ItemList",
+		numberOfItems: posts.length,
+		itemListElement: posts.map((post, i) => ({
+			"@type": "ListItem",
+			position: i + 1,
+			url: new URL(postPath(post.id, locale), Astro.site),
+			name: post.data.title,
+		})),
+	},
+}).replace(/</g, "\\u003c");
+---
+
+<html lang={localeMeta.htmlLang}>
+	<head>
+		<meta charset="utf-8" />
+		<link rel="icon" type="image/svg+xml" href={`${base}/favicon.svg`} />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="generator" content={Astro.generator} />
+		<title>{docTitle}</title>
+		<meta name="description" content={description} />
+		<link rel="canonical" href={canonical} />
+		{
+			alternates.map((a) => (
+				<link rel="alternate" hreflang={a.hreflang} href={a.href} />
+			))
+		}
+		<link rel="alternate" hreflang="x-default" href={xDefaultHref} />
+		<link
+			rel="alternate"
+			type="application/rss+xml"
+			title={t("site.name")}
+			href={feed}
+		/>
+		<meta name="theme-color" content="#05070f" />
+		<link rel="apple-touch-icon" href={`${base}/apple-touch-icon.png`} />
+		<meta property="og:type" content="website" />
+		<meta property="og:locale" content={localeMeta.ogLocale} />
+		<meta property="og:site_name" content={t("site.name")} />
+		<meta property="og:title" content={pageLabel} />
+		<meta property="og:description" content={description} />
+		<meta property="og:url" content={canonical} />
+		<meta property="og:image" content={ogImage} />
+		<meta property="og:image:width" content="1200" />
+		<meta property="og:image:height" content="630" />
+		<meta property="og:image:alt" content={t("og.imageAlt")} />
+		<meta name="twitter:card" content="summary_large_image" />
+		<meta name="twitter:title" content={pageLabel} />
+		<meta name="twitter:description" content={description} />
+		<meta name="twitter:image" content={ogImage} />
+		<script is:inline type="application/ld+json" set:html={jsonLd} />
+	</head>
+	<body>
+		<a class="skip-link" href="#tag-list">{t("tags.skipToList")}</a>
+
+		<header class="site-header">
+			<a class="back-link" href={home}>{t("post.back")}</a>
+			<div class="site-header__end">
+				<LanguageSwitch locale={locale} path={`tags/${slug}/`} />
+				<a class="feed-link" href={tagsIndexPath(locale)}
+					>{t("tags.allTitle")}</a
+				>
+			</div>
+		</header>
+
+		<main id="tag-list" class="tag-page">
+			<p class="tag-page__eyebrow">
+				<a href={tagsIndexPath(locale)}>{t("tags.eyebrow")}</a>
+				<span aria-hidden="true">/</span>
+			</p>
+			<h1 class="tag-page__title">{tag}</h1>
+			<p class="tag-page__count">
+				{t("tags.postCount", { count: posts.length })}
+			</p>
+
+			<ul class="tag-list">
+				{
+					posts.map((post) => {
+						const meta = CATEGORY_META[post.data.category];
+						const color = "#" + meta.color.toString(16).padStart(6, "0");
+						return (
+							<li class="tag-list__item">
+								<a class="tag-list__link" href={postPath(post.id, locale)}>
+									<span class="tag-list__cat" style={`color: ${color}`}>
+										<span
+											class="tag-list__dot"
+											style={`background: ${color}`}
+										/>
+										{meta.label}
+									</span>
+									<span class="tag-list__heading">{post.data.title}</span>
+									<span class="tag-list__summary">{post.data.summary}</span>
+									<span class="tag-list__date">{post.data.date}</span>
+								</a>
+							</li>
+						);
+					})
+				}
+			</ul>
+		</main>
+
+		<footer class="site-footer">
+			<a href={home}>{t("site.name")}</a> — {t("footer.tagline")}
+		</footer>
+	</body>
+</html>
+
+<style is:global>
+	:root {
+		color-scheme: dark;
+	}
+	html,
+	body {
+		margin: 0;
+		padding: 0;
+		background: radial-gradient(
+			ellipse at 50% -10%,
+			#131a30 0%,
+			#05070f 60%,
+			#000 100%
+		);
+		min-height: 100vh;
+		color: #eef2ff;
+		font-family:
+			ui-sans-serif,
+			system-ui,
+			-apple-system,
+			"Segoe UI",
+			Roboto,
+			sans-serif;
+	}
+
+	.skip-link {
+		position: absolute;
+		left: -9999px;
+		top: 0;
+		padding: 8px 14px;
+		background: #1b2440;
+		color: #fff;
+		border-radius: 0 0 8px 0;
+		z-index: 10;
+	}
+	.skip-link:focus {
+		left: 0;
+	}
+
+	.site-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		max-width: 760px;
+		margin: 0 auto;
+		padding: 24px clamp(20px, 5vw, 32px) 0;
+	}
+	.site-header a,
+	.site-footer a {
+		color: #8ab4ff;
+		text-decoration: none;
+	}
+	.site-header a:hover,
+	.site-footer a:hover {
+		text-decoration: underline;
+	}
+	.site-header__end {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+	}
+	.feed-link {
+		font-size: 13px;
+		opacity: 0.8;
+	}
+
+	.tag-page {
+		max-width: 760px;
+		margin: 0 auto;
+		padding: clamp(28px, 6vw, 56px) clamp(20px, 5vw, 32px) 48px;
+	}
+	.tag-page__eyebrow {
+		margin: 0;
+		font-size: 13px;
+		letter-spacing: 0.04em;
+		opacity: 0.6;
+		display: flex;
+		gap: 8px;
+	}
+	.tag-page__eyebrow a {
+		color: #8ab4ff;
+		text-decoration: none;
+	}
+	.tag-page__eyebrow a:hover {
+		text-decoration: underline;
+	}
+	.tag-page__title {
+		margin: 10px 0 4px;
+		font-size: clamp(28px, 5vw, 38px);
+		font-weight: 700;
+		line-height: 1.2;
+	}
+	.tag-page__count {
+		margin: 0 0 28px;
+		font-size: 14px;
+		opacity: 0.6;
+	}
+
+	.tag-list {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 12px;
+	}
+	.tag-list__link {
+		display: flex;
+		flex-direction: column;
+		gap: 6px;
+		padding: 16px 18px;
+		border-radius: 14px;
+		background: rgba(255, 255, 255, 0.03);
+		border: 1px solid rgba(255, 255, 255, 0.08);
+		color: #eef2ff;
+		text-decoration: none;
+		transition:
+			background 0.15s ease,
+			border-color 0.15s ease;
+	}
+	.tag-list__link:hover,
+	.tag-list__link:focus-visible {
+		background: rgba(255, 255, 255, 0.06);
+		border-color: rgba(255, 255, 255, 0.18);
+		outline: none;
+	}
+	.tag-list__cat {
+		display: inline-flex;
+		align-items: center;
+		gap: 7px;
+		font-size: 12px;
+		font-weight: 600;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+	}
+	.tag-list__dot {
+		width: 8px;
+		height: 8px;
+		border-radius: 50%;
+	}
+	.tag-list__heading {
+		font-size: 18px;
+		font-weight: 600;
+		line-height: 1.3;
+	}
+	.tag-list__link:hover .tag-list__heading,
+	.tag-list__link:focus-visible .tag-list__heading {
+		text-decoration: underline;
+	}
+	.tag-list__summary {
+		font-size: 14px;
+		line-height: 1.6;
+		opacity: 0.78;
+	}
+	.tag-list__date {
+		font-size: 12px;
+		opacity: 0.5;
+	}
+
+	.site-footer {
+		max-width: 760px;
+		margin: 0 auto;
+		padding: 0 clamp(20px, 5vw, 32px) 40px;
+		font-size: 13px;
+		opacity: 0.6;
+	}
+</style>

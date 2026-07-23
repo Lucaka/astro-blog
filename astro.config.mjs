@@ -1,8 +1,20 @@
 // @ts-check
+import { readdirSync } from "node:fs";
 import { defineConfig } from "astro/config";
 
 import vue from "@astrojs/vue";
 import sitemap from "@astrojs/sitemap";
+
+// Slugs that have an English translation (`<slug>.en.md`). A translated
+// `/en/posts/<slug>/` is a real, self-canonical URL and belongs in the
+// sitemap; an untranslated one is a fallback canonical'd back to the original,
+// so it's filtered out. Reading the dir here keeps this in sync automatically —
+// drop in a translation and its English page joins the sitemap on next build.
+const translatedEnSlugs = new Set(
+  readdirSync("./src/content/posts", { withFileTypes: true })
+    .filter((e) => e.isFile() && e.name.endsWith(".en.md"))
+    .map((e) => e.name.slice(0, -".en.md".length)),
+);
 import expressiveCode from "astro-expressive-code";
 import tailwindcss from "@tailwindcss/vite";
 import { unified } from "@astrojs/markdown-remark";
@@ -43,13 +55,15 @@ export default defineConfig({
       },
     }),
     vue(),
-    // The English per-post pages are untranslated fallbacks whose canonical
-    // points back at the zh-hant original, so keep them out of the sitemap —
-    // it should list canonical URLs only. The `/en/` landing page (a real
-    // localized alternate) stays in. Drop the filter in Phase 4 once posts are
-    // actually translated and become their own canonical URLs.
+    // Keep the sitemap to canonical URLs only. An `/en/posts/<slug>/` page is
+    // an untranslated fallback (canonical'd to the original) UNLESS a
+    // translation exists — then it's a real URL and stays in. Everything else,
+    // including `/en/` and `/en/tags/` (real localized alternates), stays in.
     sitemap({
-      filter: (page) => !/\/en\/posts\//.test(page),
+      filter: (page) => {
+        const match = page.match(/\/en\/posts\/([^/]+)\//);
+        return match ? translatedEnSlugs.has(match[1]) : true;
+      },
     }),
   ],
   vite: {

@@ -4,8 +4,11 @@
  *
  * Tags live in post frontmatter as free-form strings ("Vue.js", "HTML
  * attribute", "語言代碼"), so we derive a stable, URL-safe slug from each and
- * build every tag URL through `tagPath` — never hardcoding the base.
+ * build every tag URL through `tagPath` — never hardcoding the base. URLs are
+ * locale-aware: prefix-less for the default `zh-hant`, `/en/…` for the rest.
  */
+import { DEFAULT_LOCALE, type Locale } from "../i18n/config";
+import { localePrefix } from "./posts";
 
 /** URL-safe slug for a tag. Lowercases, drops parens, collapses separators. */
 export function tagSlug(tag: string): string {
@@ -17,14 +20,14 @@ export function tagSlug(tag: string): string {
     .replace(/^-|-$/g, "");
 }
 
-/** Site-relative path of a tag page, respecting the configured base. */
-export function tagPath(slug: string): string {
+/** Site-relative path of a tag page, respecting the base and the locale. */
+export function tagPath(slug: string, locale: Locale = DEFAULT_LOCALE): string {
   const base = import.meta.env.BASE_URL.replace(/\/$/, "");
-  return `${base}/tags/${slug}/`;
+  return `${base}${localePrefix(locale)}/tags/${slug}/`;
 }
 
-/** Site-relative path of the tag directory (`/tags/`). */
-export function tagsIndexPath(): string {
+/** Site-relative path of the tag directory (`/tags/`), per locale. */
+export function tagsIndexPath(locale: Locale = DEFAULT_LOCALE): string {
   const base = import.meta.env.BASE_URL.replace(/\/$/, "");
-  return `${base}/tags/`;
+  return `${base}${localePrefix(locale)}/tags/`;
 }

@@ -1,21 +1,20 @@
 ---
 import type { CollectionEntry } from "astro:content";
 import { getCollection } from "astro:content";
-import { byDateDesc } from "../../utils/posts";
-import { tagSlug } from "../../utils/tags";
-import TagPage from "../../components/pages/TagPage.astro";
+import { byDateDesc } from "../../../utils/posts";
+import { tagSlug } from "../../../utils/tags";
+import TagPage from "../../../components/pages/TagPage.astro";
 
 type PostEntry = CollectionEntry<"posts">;
 
 /**
- * zh-hant per-tag page. Markup, styling and SEO live in <TagPage>, shared with
- * `/en/tags/[tag]/`; this file groups the posts carrying each tag.
+ * English per-tag page. Shares <TagPage> with the zh-hant route; the listed
+ * post titles aren't translated, but the chrome is. Same grouping as the
+ * zh-hant route so both locales expose the identical tag set.
  */
 export async function getStaticPaths() {
 	const entries = (await getCollection("posts")).sort(byDateDesc);
 
-	// slug -> { tag, posts }. The slug is derived once so params and hrefs agree;
-	// the display label is whatever the posts use.
 	const groups = new Map<string, { tag: string; posts: PostEntry[] }>();
 	for (const entry of entries) {
 		for (const tag of entry.data.tags) {
@@ -38,4 +37,4 @@ export async function getStaticPaths() {
 const { tag, posts } = Astro.props as { tag: string; posts: PostEntry[] };
 ---
 
-<TagPage locale="zh-hant" tag={tag} posts={posts} />
+<TagPage locale="en" tag={tag} posts={posts} />
