@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.0](https://github.com/Lucaka/astro-blog/compare/astro-blog-v0.1.0...astro-blog-v0.2.0) (2026-07-23)
+
+
+### ✨ New Features
+
+* [ContentStars] - 新增標籤索引頁與強化文章結構化資料 ([#23](https://github.com/Lucaka/astro-blog/issues/23)) ([8997c80](https://github.com/Lucaka/astro-blog/commit/8997c80016359eaf0cfedb75e44684270769ee0b))
+* [I18n] - Phase 4:per-post 翻譯基建(兄弟檔)與標籤頁 i18n ([#25](https://github.com/Lucaka/astro-blog/issues/25)) ([b7d3dbe](https://github.com/Lucaka/astro-blog/commit/b7d3dbe41927a408f63c1f60be578fd0c36de790))
+
 ## [0.1.0](https://github.com/Lucaka/astro-blog/compare/astro-blog-v0.0.1...astro-blog-v0.1.0) (2026-07-16)
 
 
