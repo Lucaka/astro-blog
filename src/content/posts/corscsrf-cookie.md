@@ -4,6 +4,7 @@ date: 2026.09.30
 category: frontend
 tags:
   - Security
+  - AI
 summary: CORS 是瀏覽器的跨 Origin 資料讀取限制，而 CSRF、Cookie、Origin 驗證與
   Authentication/Authorization 則分別負責防止偽造請求、保護身份與控制 API 存取權限。
 ---
