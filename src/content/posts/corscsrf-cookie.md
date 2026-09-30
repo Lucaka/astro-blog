@@ -1,6 +1,6 @@
 ---
 title: CORS、CSRF 與 Cookie：瀏覽器到底在防什麼？
-date: 2025.09.30
+date: 2026.09.30
 category: frontend
 tags:
   - Security
