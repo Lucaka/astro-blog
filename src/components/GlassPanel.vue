@@ -19,8 +19,10 @@ const props = withDefaults(
     tag?: string;
     /** aria-label for the × close button; defaults to the localized "Close". */
     closeLabel?: string;
+    /** Reading card: opaque enough (about 80%) that body text stays solid. */
+    solid?: boolean;
   }>(),
-  { align: "center", tag: "section" },
+  { align: "center", tag: "section", solid: false },
 );
 
 const emit = defineEmits<{
@@ -35,6 +37,8 @@ const closeAriaLabel = () => props.closeLabel ?? t("panel.close");
 // `align` is fixed per call site, so a plain computed-once string is enough.
 const scrimClass =
   "fixed inset-0 z-30 flex items-center p-[clamp(16px,4vw,48px)] max-sm:p-0 " +
+  // Clear the fixed language switch in the top-right corner.
+  "sm:pt-[max(5.75rem,clamp(16px,4vw,48px))] " +
   (props.align === "end"
     ? "justify-end max-sm:items-stretch max-sm:justify-stretch"
     : "justify-center");
@@ -43,23 +47,26 @@ const scrimClass =
 // Kept as a grouped const (not a sorted inline string) because it's long and
 // carries a per-variant size branch — see ReadingPanel's note on this pattern.
 const panelClass = [
-  "glass-panel relative overflow-y-auto rounded-[20px] border border-white/12",
-  "bg-[#0e121e]/45 px-[30px] py-8 text-ink shadow-[0_8px_40px_rgba(0,0,0,0.25)]",
-  "backdrop-blur-lg focus:outline-none",
-  // Mobile: darker fill and square corners over the bright bloom ring.
-  "max-sm:h-dvh max-sm:rounded-none max-sm:border-x-0 max-sm:bg-[#0a0d16]/72",
-  "max-sm:px-[22px] max-sm:pt-7 max-sm:pb-10",
+  "glass-panel relative overflow-y-auto rounded-[20px] border border-line",
+  "px-[30px] py-8 pr-16 text-ink shadow-[0_12px_40px_rgba(0,0,0,0.35)] backdrop-blur-lg",
+  props.solid ? "bg-panel/80" : "bg-panel/55",
+  // Mobile: full-bleed sheet. Reading stays near 80% so type doesn't pick up bloom.
+  "max-sm:h-dvh max-sm:max-w-full max-sm:rounded-none max-sm:border-x-0",
+  props.solid ? "max-sm:bg-panel-deep/80" : "max-sm:bg-panel-deep/72",
+  "max-sm:px-[calc(1.25rem+var(--safe-l))] max-sm:pt-[calc(1.75rem+var(--safe-t))]",
+  "max-sm:pb-[calc(2.5rem+var(--safe-b))] max-sm:pr-[calc(3.5rem+var(--safe-r))]",
   // Docked-right (reading) card is wider/taller and becomes a full sheet on
   // mobile; the centered (guide) card stays a fixed-width centered card.
   props.align === "end"
-    ? "max-h-[84vh] w-[min(440px,92vw)] max-sm:max-h-none max-sm:w-screen"
-    : "max-h-[80vh] w-[min(400px,92vw)]",
+    ? "max-h-[min(84vh,calc(100dvh-9.5rem))] w-[min(440px,92vw)] max-sm:max-h-none max-sm:w-full"
+    : "max-h-[min(80vh,calc(100dvh-9.5rem))] w-[min(400px,92vw)]",
 ].join(" ");
 
 const closeClass =
-  "absolute top-3.5 right-4 size-8 cursor-pointer rounded-lg bg-white/6 " +
-  "text-xl leading-none text-[#cdd6f4] transition-colors duration-150 " +
-  "hover:bg-white/14 focus-visible:bg-white/14";
+  "absolute top-3 right-3 inline-flex size-11 cursor-pointer items-center " +
+  "justify-center rounded-lg bg-fill text-xl leading-none text-ink " +
+  "transition-colors duration-150 hover:bg-fill-strong focus-visible:bg-fill-strong " +
+  "max-sm:top-[calc(0.75rem+var(--safe-t))] max-sm:right-[calc(0.75rem+var(--safe-r))]";
 
 // --- Modal accessibility: focus management + trap + Esc --------------------
 const panelEl = ref<HTMLElement | null>(null);
@@ -122,7 +129,11 @@ function handleKeydown(event: KeyboardEvent) {
         :aria-label="label"
         tabindex="-1"
       >
-        <button :class="closeClass" :aria-label="closeAriaLabel()" @click="emit('close')">
+        <button
+          :class="closeClass"
+          :aria-label="closeAriaLabel()"
+          @click="emit('close')"
+        >
           ×
         </button>
         <slot />

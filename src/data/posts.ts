@@ -9,11 +9,7 @@
  * color/label mapping.
  */
 export type PostCategory =
-  | "project"
-  | "frontend"
-  | "philosophy"
-  | "blog"
-  | "demo";
+  "project" | "frontend" | "philosophy" | "blog" | "demo";
 
 export interface Post {
   /** Content collection entry id / Markdown file slug. */
@@ -37,6 +33,7 @@ export const CATEGORY_META: Record<
   project: { label: "Project", color: 0xffd54a },
   frontend: { label: "Frontend", color: 0x6fb3ff },
   philosophy: { label: "Philosophy", color: 0xb07cff },
-  blog: { label: "Blog", color: 0xf0f0f0 },
+  // Rose, not near-white: a #f0f0f0 star bloomed into a flat white disc.
+  blog: { label: "Blog", color: 0xff7eb3 },
   demo: { label: "Demo", color: 0x5fe6d0 },
 };

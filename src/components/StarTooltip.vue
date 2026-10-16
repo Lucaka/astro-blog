@@ -12,16 +12,18 @@ defineProps<{
 
 <template>
   <div
-    class="pointer-events-none fixed z-20 min-w-[120px] -translate-x-1/2 translate-y-[calc(-100%_-_18px)] rounded-[10px] border border-white/14 bg-[#0c101c]/55 px-3 py-2 whitespace-nowrap text-ink backdrop-blur-[6px]"
+    class="pointer-events-none fixed z-20 max-w-[min(18rem,calc(100vw-1.5rem))] min-w-[120px] -translate-x-1/2 translate-y-[calc(-100%_-_18px)] rounded-[10px] border border-line bg-hud/85 px-3 py-2 text-ink backdrop-blur-[6px]"
     :style="position"
   >
-    <div class="text-[13px] font-semibold">{{ title }}</div>
-    <div class="mt-0.5 text-[11px] opacity-60">{{ meta }}</div>
-    <div v-if="tags && tags.length" class="mt-1.5 flex gap-[5px]">
+    <div class="text-[15px] leading-snug font-semibold text-balance">
+      {{ title }}
+    </div>
+    <div class="mt-0.5 text-sm leading-snug text-ink-meta">{{ meta }}</div>
+    <div v-if="tags && tags.length" class="mt-1.5 flex flex-wrap gap-[5px]">
       <span
         v-for="tag in tags"
         :key="tag"
-        class="rounded-md bg-white/8 px-1.5 py-px text-[10px] opacity-85"
+        class="rounded-md bg-fill-strong px-1.5 py-0.5 text-xs text-ink-soft"
         >{{ tag }}</span
       >
     </div>

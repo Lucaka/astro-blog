@@ -22,18 +22,18 @@ const legend = (Object.keys(CATEGORY_META) as PostCategory[]).map((c) => ({
 
 <template>
   <div
-    class="fixed bottom-[clamp(16px,3vw,28px)] left-[clamp(16px,3vw,32px)] z-20 flex flex-wrap gap-1 rounded-xl border border-white/8 bg-[#0c101c]/35 px-2 py-1.5 text-xs text-ink-soft backdrop-blur-[6px] transition-[opacity,transform] duration-[350ms] motion-reduce:transition-none"
+    class="legend-scroll fixed bottom-[calc(var(--hud-edge)+var(--safe-b))] left-[calc(var(--hud-edge)+var(--safe-l))] z-20 flex max-w-[calc(100vw-var(--safe-l)-var(--safe-r)-var(--hud-edge)*2-3.25rem)] flex-nowrap gap-1 overflow-x-auto rounded-xl border border-line bg-hud/80 px-2 py-1.5 text-sm text-ink backdrop-blur-[6px] transition-[opacity,transform] duration-[350ms] motion-reduce:transition-none"
     :class="{ 'pointer-events-none translate-y-2 opacity-0': hidden }"
   >
     <button
       v-for="item in legend"
       :key="item.category"
       type="button"
-      class="inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-2 py-1 transition-[opacity,background-color] duration-200 hover:bg-white/8 focus-visible:bg-white/8 aria-pressed:bg-white/12"
+      class="inline-flex min-h-11 shrink-0 cursor-pointer items-center gap-1.5 rounded-lg px-2.5 py-1 text-sm whitespace-nowrap transition-colors duration-200 hover:bg-fill-strong focus-visible:bg-fill-strong aria-pressed:bg-fill-strong"
       :class="
         active.size > 0 && !active.has(item.category)
-          ? 'opacity-35'
-          : 'opacity-85 aria-pressed:opacity-100'
+          ? 'text-ink-dim'
+          : 'text-ink'
       "
       :aria-pressed="active.has(item.category)"
       @click="$emit('toggle', item.category)"
@@ -46,3 +46,12 @@ const legend = (Object.keys(CATEGORY_META) as PostCategory[]).map((c) => ({
     </button>
   </div>
 </template>
+
+<style scoped>
+.legend-scroll {
+  scrollbar-width: none;
+}
+.legend-scroll::-webkit-scrollbar {
+  display: none;
+}
+</style>

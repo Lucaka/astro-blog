@@ -17,6 +17,8 @@ import {
 } from "../../i18n/config";
 import LanguageSwitch from "../LanguageSwitch.astro";
 import { tagSlug, tagPath, tagsIndexPath } from "../../utils/tags";
+import "../../styles/global.css";
+import "../../styles/document.css";
 import type { TranslationEntry } from "../../utils/translations";
 
 /**
@@ -121,7 +123,10 @@ const jsonLd = JSON.stringify({
 	<head>
 		<meta charset="utf-8" />
 		<link rel="icon" type="image/svg+xml" href={`${base}/favicon.svg`} />
-		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta
+			name="viewport"
+			content="width=device-width, initial-scale=1, viewport-fit=cover"
+		/>
 		<meta name="generator" content={Astro.generator} />
 		<title>{title} {t("post.docTitleSuffix")}</title>
 		<meta name="description" content={summary} />
@@ -169,7 +174,7 @@ const jsonLd = JSON.stringify({
 		<meta name="twitter:image" content={ogImage} />
 		<script is:inline type="application/ld+json" set:html={jsonLd} />
 	</head>
-	<body>
+	<body class="doc doc--article">
 		<a class="skip-link" href="#article">{t("post.skip")}</a>
 
 		<header class="site-header">
@@ -180,7 +185,7 @@ const jsonLd = JSON.stringify({
 			</div>
 		</header>
 
-		<main id="article" class="post">
+		<main id="article" class="post doc-main">
 			<article>
 				<p class="post__category" style={`color: ${color}`}>
 					<span class="post__dot" style={`background: ${color}`}></span>
@@ -209,7 +214,7 @@ const jsonLd = JSON.stringify({
 						</p>
 					)
 				}
-				<div class="post__body" lang={bodyLang}>
+				<div class="post__body prose" lang={bodyLang}>
 					<Content />
 				</div>
 			</article>
@@ -254,94 +259,24 @@ const jsonLd = JSON.stringify({
 </html>
 
 <style is:global>
-	:root {
-		color-scheme: dark;
-	}
-	html,
-	body {
-		margin: 0;
-		padding: 0;
-		background: radial-gradient(
-			ellipse at 50% -10%,
-			#131a30 0%,
-			#05070f 60%,
-			#000 100%
-		);
-		min-height: 100vh;
-		color: #eef2ff;
-		font-family:
-			ui-sans-serif,
-			system-ui,
-			-apple-system,
-			"Segoe UI",
-			Roboto,
-			sans-serif;
-	}
-
-	.skip-link {
-		position: absolute;
-		left: -9999px;
-		top: 0;
-		padding: 8px 14px;
-		background: #1b2440;
-		color: #fff;
-		border-radius: 0 0 8px 0;
-		z-index: 10;
-	}
-	.skip-link:focus {
-		left: 0;
-	}
-
-	.site-header {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		max-width: 720px;
-		margin: 0 auto;
-		padding: 24px clamp(20px, 5vw, 32px) 0;
-	}
-	.site-header a,
-	.site-footer a {
-		color: #8ab4ff;
-		text-decoration: none;
-	}
-	.site-header a:hover,
-	.site-footer a:hover {
-		text-decoration: underline;
-	}
-	.site-header__end {
-		display: flex;
-		align-items: center;
-		gap: 12px;
-	}
-	.feed-link {
-		font-size: 13px;
-		opacity: 0.8;
-	}
-
 	.post__untranslated {
 		margin: 0 0 20px;
 		padding: 10px 14px;
 		border-radius: 10px;
-		border: 1px solid rgba(255, 204, 102, 0.25);
-		border-left: 3px solid #ffcc66;
-		background: rgba(255, 204, 102, 0.06);
-		font-size: 14px;
+		border: 1px solid rgb(255 204 102 / 0.35);
+		border-left: 3px solid var(--color-warn);
+		background: rgb(255 204 102 / 0.08);
+		color: var(--color-warn-ink);
+		font-size: 15px;
 		line-height: 1.6;
-		opacity: 0.92;
 	}
 
-	.post {
-		max-width: 720px;
-		margin: 0 auto;
-		padding: clamp(28px, 6vw, 56px) clamp(20px, 5vw, 32px) 48px;
-	}
 	.post__category {
 		display: inline-flex;
 		align-items: center;
 		gap: 7px;
 		margin: 0;
-		font-size: 13px;
+		font-size: 14px;
 		font-weight: 600;
 		letter-spacing: 0.04em;
 		text-transform: uppercase;
@@ -356,32 +291,34 @@ const jsonLd = JSON.stringify({
 		font-size: clamp(28px, 5vw, 38px);
 		font-weight: 700;
 		line-height: 1.2;
+		scroll-margin-top: 5rem;
 	}
 	.post__meta {
-		margin: 0;
-		font-size: 14px;
-		opacity: 0.6;
-		display: flex;
-		gap: 8px;
-	}
-	.post__tags {
-		margin: 18px 0;
-		padding: 0;
-		list-style: none;
 		display: flex;
 		flex-wrap: wrap;
 		gap: 8px;
+		margin: 0;
+		color: var(--color-ink-meta);
+		font-size: 15px;
 	}
-	.post__tags li {
-		font-size: 12px;
+	.post__tags {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 8px;
+		margin: 18px 0;
+		padding: 0;
+		list-style: none;
 	}
 	.post__tags a {
-		display: inline-block;
-		padding: 3px 10px;
+		display: inline-flex;
+		align-items: center;
+		min-height: 44px;
+		padding: 4px 10px;
+		border: 1px solid var(--color-line);
 		border-radius: 8px;
-		background: rgba(255, 255, 255, 0.07);
-		border: 1px solid rgba(255, 255, 255, 0.08);
-		color: #cdd8ff;
+		background: var(--color-fill);
+		color: var(--color-ink-soft);
+		font-size: 14px;
 		text-decoration: none;
 		transition:
 			background 0.15s ease,
@@ -389,116 +326,15 @@ const jsonLd = JSON.stringify({
 	}
 	.post__tags a:hover,
 	.post__tags a:focus-visible {
-		background: rgba(138, 180, 255, 0.16);
-		border-color: rgba(138, 180, 255, 0.4);
-		color: #eaf1ff;
-		outline: none;
+		border-color: rgb(138 180 255 / 0.5);
+		background: rgb(138 180 255 / 0.16);
+		color: var(--color-ink);
 	}
 	.post__summary {
 		margin: 8px 0 24px;
+		color: var(--color-ink-body);
 		font-size: 17px;
 		line-height: 1.6;
-		opacity: 0.92;
-	}
-	.post__body {
-		font-size: 16px;
-		line-height: 1.85;
-		opacity: 0.88;
-	}
-	.post__body p {
-		margin: 0 0 14px;
-	}
-	.post__body strong {
-		color: #fff;
-		font-weight: 600;
-	}
-	.post__body h2,
-	.post__body h3 {
-		margin: 28px 0 10px;
-		line-height: 1.3;
-		color: #fff;
-	}
-	/* Heading anchor: a faint "#" that appears when you hover the heading. */
-	.post__body .heading-anchor {
-		margin-left: 8px;
-		color: #8ab4ff;
-		text-decoration: none;
-		opacity: 0;
-		transition: opacity 0.15s ease;
-	}
-	.post__body h2:hover .heading-anchor,
-	.post__body h3:hover .heading-anchor,
-	.post__body .heading-anchor:focus-visible {
-		opacity: 0.7;
-	}
-	.post__body ul,
-	.post__body ol {
-		margin: 0 0 14px;
-		padding-left: 22px;
-	}
-	.post__body li {
-		margin: 5px 0;
-	}
-	.post__body blockquote {
-		margin: 14px 0;
-		padding: 8px 16px;
-		border-left: 2px solid rgba(255, 255, 255, 0.25);
-		opacity: 0.8;
-		font-style: italic;
-	}
-	.post__body a {
-		color: #8ab4ff;
-	}
-	.post__body code {
-		padding: 1px 5px;
-		border-radius: 5px;
-		background: rgba(255, 255, 255, 0.1);
-		font-size: 0.9em;
-	}
-	/* Code blocks are rendered by Expressive Code (its own frame + copy button).
-	   Give it room and stop the inline-code pill leaking onto its lines. */
-	.post__body .expressive-code {
-		margin: 0 0 16px;
-	}
-	.post__body .expressive-code code {
-		padding: 0;
-		background: none;
-		border-radius: 0;
-		font-size: inherit;
-	}
-
-	/* Callouts: :::info / :::warning turned into <aside> by remark-callouts. */
-	.post__body .callout {
-		margin: 18px 0;
-		padding: 12px 16px;
-		border-radius: 10px;
-		border: 1px solid rgba(255, 255, 255, 0.1);
-		border-left-width: 3px;
-		background: rgba(255, 255, 255, 0.04);
-	}
-	.post__body .callout > :last-child {
-		margin-bottom: 0;
-	}
-	.post__body .callout__label {
-		margin: 0 0 6px;
-		font-size: 12px;
-		font-weight: 600;
-		letter-spacing: 0.04em;
-		text-transform: uppercase;
-		opacity: 0.9;
-	}
-	.post__body .callout--info {
-		border-left-color: #8ab4ff;
-	}
-	.post__body .callout--info .callout__label {
-		color: #8ab4ff;
-	}
-	.post__body .callout--warning {
-		border-left-color: #ffcc66;
-		background: rgba(255, 204, 102, 0.06);
-	}
-	.post__body .callout--warning .callout__label {
-		color: #ffcc66;
 	}
 
 	.post-nav {
@@ -507,43 +343,38 @@ const jsonLd = JSON.stringify({
 		gap: 16px;
 		margin-top: 40px;
 		padding-top: 24px;
-		border-top: 1px solid rgba(255, 255, 255, 0.1);
+		border-top: 1px solid var(--color-line);
 	}
 	.post-nav__link {
 		display: flex;
 		flex-direction: column;
 		gap: 4px;
 		max-width: 46%;
-		color: #eef2ff;
+		min-width: 0;
+		color: var(--color-ink);
 		text-decoration: none;
 	}
 	.post-nav__link--newer {
-		text-align: right;
 		margin-left: auto;
+		text-align: right;
 	}
 	.post-nav__hint {
-		font-size: 12px;
-		color: #8ab4ff;
+		color: var(--color-accent);
+		font-size: 14px;
 	}
 	.post-nav__title {
-		font-size: 14px;
+		color: var(--color-ink-body);
+		font-size: 15px;
 		line-height: 1.4;
-		opacity: 0.85;
+		overflow-wrap: anywhere;
 	}
 	.post-nav__link:hover .post-nav__title,
 	.post-nav__link:focus-visible .post-nav__title {
-		opacity: 1;
+		color: var(--color-ink);
 		text-decoration: underline;
+		text-underline-offset: 3px;
 	}
 	.post-nav__spacer {
 		flex: 1;
-	}
-
-	.site-footer {
-		max-width: 720px;
-		margin: 0 auto;
-		padding: 0 clamp(20px, 5vw, 32px) 40px;
-		font-size: 13px;
-		opacity: 0.6;
 	}
 </style>

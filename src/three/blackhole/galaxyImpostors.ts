@@ -45,7 +45,7 @@ export interface GalaxyImpostors {
 const SPACING = 26;
 
 /** Per-galaxy tints so volumes are telling apart at a glance. */
-const TINTS = [0x8ab4ff, 0xffd54a, 0xb07cff, 0x5fe6d0, 0xff9d6f, 0xf0f0f0];
+const TINTS = [0x8ab4ff, 0xffd54a, 0xb07cff, 0x5fe6d0, 0xff9d6f, 0xff7eb3];
 
 function createLabelTexture(
   galaxy: Galaxy,
@@ -58,14 +58,17 @@ function createLabelTexture(
   const ctx = canvas.getContext("2d")!;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillStyle = isActive ? "#ffffff" : "rgba(238, 242, 255, 0.9)";
-  ctx.font =
-    "600 42px ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
+  const sans =
+    getComputedStyle(document.documentElement)
+      .getPropertyValue("--font-sans")
+      .trim() ||
+    '"PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif';
+  ctx.fillStyle = isActive ? "#eef2ff" : "#d7def5";
+  ctx.font = `600 42px ${sans}`;
   const name = t("galaxy.name", { n: galaxy.index });
   ctx.fillText(name + (isActive ? t("galaxy.current") : ""), 256, 52);
-  ctx.fillStyle = "rgba(178, 192, 232, 0.85)";
-  ctx.font =
-    "28px ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
+  ctx.fillStyle = "#b9c3e2";
+  ctx.font = `28px ${sans}`;
   ctx.fillText(
     `${galaxy.era} · ${t("galaxy.starCount", { count: galaxy.posts.length })}`,
     256,
@@ -124,7 +127,10 @@ export function createGalaxyImpostors(
       colors[i * 3 + 2] = c.b;
     }
     const discGeometry = new THREE.BufferGeometry();
-    discGeometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    discGeometry.setAttribute(
+      "position",
+      new THREE.BufferAttribute(positions, 3),
+    );
     discGeometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
     const disc = new THREE.Points(
       discGeometry,

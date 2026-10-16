@@ -23,6 +23,7 @@ import remarkCallouts from "./src/plugins/remark-callouts.mjs";
 import rehypeSlug from "rehype-slug";
 import rehypeAutolinkHeadings from "rehype-autolink-headings";
 import rehypeExternalLinks from "rehype-external-links";
+import rehypeContent from "./src/plugins/rehype-content.mjs";
 
 // https://astro.build/config
 export default defineConfig({
@@ -47,6 +48,8 @@ export default defineConfig({
         borderRadius: "12px",
         borderColor: "rgba(255, 255, 255, 0.08)",
         codeFontSize: "14px",
+        codeFontFamily:
+          'var(--font-mono), ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace',
         frames: {
           // Blend the code frame into the dark universe backdrop.
           editorBackground: "rgba(255, 255, 255, 0.02)",
@@ -94,6 +97,9 @@ export default defineConfig({
           },
         ],
         // Open external links in a new tab, safely.
+        // Lazy images + scrollable table wrappers. After autolink so heading
+        // anchors are already in the tree.
+        rehypeContent,
         [
           rehypeExternalLinks,
           { target: "_blank", rel: ["noopener", "noreferrer"] },

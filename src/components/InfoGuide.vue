@@ -21,7 +21,7 @@ const showInfo = ref(false);
   <button
     v-if="!hidden"
     type="button"
-    class="fixed right-[clamp(16px,3vw,28px)] bottom-[clamp(16px,3vw,28px)] z-20 size-[34px] cursor-pointer rounded-full border border-white/14 bg-[#0c101c]/45 text-base leading-none font-semibold text-ink-soft backdrop-blur-[6px] transition-colors duration-150 hover:bg-white/14 focus-visible:bg-white/14"
+    class="fixed right-[calc(var(--hud-edge)+var(--safe-r))] bottom-[calc(var(--hud-edge)+var(--safe-b))] z-20 inline-flex size-11 cursor-pointer items-center justify-center rounded-full border border-line-strong bg-hud/80 text-base leading-none font-semibold text-ink backdrop-blur-[6px] transition-colors duration-150 hover:bg-fill-strong focus-visible:bg-fill-strong"
     :aria-label="t('guide.button')"
     @click="showInfo = true"
   >
@@ -40,7 +40,7 @@ const showInfo = ref(false);
     <!-- Guide items carry inline <strong> emphasis, so they're stored as
          trusted markup in the dictionary and rendered with v-html. -->
     <ul
-      class="list-disc pl-[18px] text-sm leading-[1.9] opacity-90 [&_strong]:font-semibold [&_strong]:text-accent [&>li+li]:mt-1.5"
+      class="list-disc pl-[18px] text-[15px] leading-[1.85] text-ink-body [&_strong]:font-semibold [&_strong]:text-accent [&>li+li]:mt-1.5"
     >
       <li v-html="t('guide.item1')"></li>
       <li v-html="t('guide.item2')"></li>

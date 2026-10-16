@@ -75,7 +75,7 @@ watch(listVisible, (visible) => {
        legend stack. -->
   <button
     type="button"
-    class="list-toggle fixed top-[calc(clamp(14px,3vw,24px)+42px)] left-[clamp(16px,3vw,32px)] z-20 inline-flex cursor-pointer items-center gap-[7px] px-3.5 py-2 text-xs text-ink-soft transition-[opacity,transform] duration-[350ms] motion-reduce:transition-none max-sm:top-[clamp(14px,3vw,24px)]"
+    class="list-toggle fixed top-[calc(clamp(14px,3vw,24px)+var(--safe-t)+4.75rem)] left-[calc(var(--hud-edge)+var(--safe-l))] z-20 inline-flex min-h-11 cursor-pointer items-center gap-[7px] px-3.5 text-sm text-ink transition-[opacity,transform] duration-[350ms] motion-reduce:transition-none max-sm:top-[calc(12px+var(--safe-t))]"
     :class="{ 'pointer-events-none -translate-y-2 opacity-0': !active }"
     :aria-expanded="showList"
     aria-controls="post-list-panel"
@@ -87,16 +87,20 @@ watch(listVisible, (visible) => {
     <aside
       v-if="listVisible"
       id="post-list-panel"
-      class="post-list fixed top-[calc(clamp(14px,3vw,24px)+84px)] bottom-[clamp(64px,10vh,96px)] left-[clamp(16px,3vw,32px)] z-20 flex w-[min(290px,calc(100vw-32px))] flex-col overflow-hidden text-ink max-sm:top-[calc(clamp(14px,3vw,24px)+44px)] max-sm:bottom-[calc(clamp(58px,14vw,76px)+46px)]"
+      class="post-list fixed top-[calc(clamp(14px,3vw,24px)+var(--safe-t)+8.25rem)] bottom-[calc(var(--hud-edge)+var(--legend-block)+var(--hint-block)+var(--hud-gap)*2)] left-[calc(var(--hud-edge)+var(--safe-l))] z-20 flex w-[min(300px,calc(100vw-32px-var(--safe-l)))] flex-col overflow-hidden text-ink max-sm:top-auto max-sm:right-0 max-sm:bottom-0 max-sm:left-0 max-sm:z-[28] max-sm:h-auto max-sm:max-h-[min(68dvh,32rem)] max-sm:w-full"
       :aria-label="t('sidebar.panelLabel')"
     >
       <!-- Typing filters the list below in place; Enter picks the first
            match. Cross-galaxy matches are included — clicking one dives
            into its galaxy on the way to the star. -->
+      <span
+        class="mx-auto mt-2.5 hidden h-1 w-10 flex-none rounded-full bg-ink-dim max-sm:block"
+        aria-hidden="true"
+      ></span>
       <div class="post-list__search relative mx-3.5 mt-3.5 flex-none">
         <input
           v-model="searchQuery"
-          class="w-full bg-transparent px-3 py-2 text-[13px] text-ink outline-none placeholder:text-ink-soft/55"
+          class="min-h-11 w-full bg-transparent px-3 py-2 text-sm text-ink placeholder:text-ink-dim"
           type="search"
           :placeholder="t('sidebar.searchPlaceholder')"
           :aria-label="t('sidebar.searchLabel')"
@@ -105,7 +109,7 @@ watch(listVisible, (visible) => {
         />
       </div>
       <p
-        class="m-0 flex-none px-4 pt-2.5 pb-2 text-[11px] tracking-[0.08em] text-ink-dim"
+        class="m-0 flex-none px-4 pt-2.5 pb-2 text-sm tracking-[0.04em] text-ink-meta"
         role="status"
       >
         <template v-if="searching">{{
@@ -120,7 +124,7 @@ watch(listVisible, (visible) => {
       </p>
       <p
         v-if="!filteredPosts.length"
-        class="m-0 px-4 pt-1 pb-3.5 text-xs text-ink-dim"
+        class="m-0 px-4 pt-1 pb-3.5 text-sm text-ink-meta"
       >
         {{ t("sidebar.noResults") }}
       </p>
@@ -133,7 +137,7 @@ watch(listVisible, (visible) => {
         <li v-for="post in filteredPosts" :key="post.slug">
           <button
             type="button"
-            class="flex w-full cursor-pointer items-start gap-2.5 rounded-[10px] px-2.5 py-[9px] text-left transition-colors duration-150 hover:bg-white/8 focus-visible:bg-white/8"
+            class="flex min-h-11 w-full cursor-pointer items-start gap-2.5 rounded-[10px] px-2.5 py-2.5 text-left transition-colors duration-150 hover:bg-fill-strong focus-visible:bg-fill-strong"
             @mouseenter="emit('hover', post.slug)"
             @mouseleave="emit('hover', null)"
             @focus="emit('hover', post.slug)"
@@ -145,10 +149,11 @@ watch(listVisible, (visible) => {
               :style="{ background: catColor(post.category) }"
             ></span>
             <span class="min-w-0">
-              <span class="block text-[13px] leading-[1.45] font-semibold">{{
-                post.title
-              }}</span>
-              <span class="mt-0.5 block text-[11px] opacity-60">{{
+              <span
+                class="block text-sm leading-[1.45] font-semibold text-ink"
+                >{{ post.title }}</span
+              >
+              <span class="mt-0.5 block text-sm text-ink-meta">{{
                 postMeta(post, t)
               }}</span>
             </span>
@@ -187,14 +192,14 @@ watch(listVisible, (visible) => {
   position: absolute;
   inset: 0;
   z-index: -2;
-  background: rgba(170, 221, 255, 0.4);
+  background: rgb(170 221 255 / 0.55);
 }
 .list-toggle::after {
   content: "";
   position: absolute;
   inset: 1px;
   z-index: -1;
-  background: rgba(12, 16, 28, 0.55);
+  background: rgb(12 16 28 / 0.82);
   clip-path: polygon(
     9px 0,
     calc(100% - 9px) 0,
@@ -211,10 +216,10 @@ watch(listVisible, (visible) => {
 }
 .list-toggle:hover::after,
 .list-toggle:focus-visible::after {
-  background: rgba(136, 204, 255, 0.18);
+  background: rgb(136 204 255 / 0.22);
 }
 .list-toggle:focus-visible::before {
-  background: rgba(170, 221, 255, 0.9);
+  background: var(--color-wire);
 }
 .post-list {
   isolation: isolate;
@@ -234,14 +239,14 @@ watch(listVisible, (visible) => {
   position: absolute;
   inset: 0;
   z-index: -2;
-  background: rgba(170, 221, 255, 0.4);
+  background: rgb(170 221 255 / 0.5);
 }
 .post-list::after {
   content: "";
   position: absolute;
   inset: 1px;
   z-index: -1;
-  background: rgba(11, 17, 30, 0.72);
+  background: rgb(11 17 30 / 0.88);
   clip-path: polygon(
     18px 0,
     calc(100% - 18px) 0,
@@ -255,7 +260,7 @@ watch(listVisible, (visible) => {
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   /* The plates' faint additive fill, as a whisper of inner glow. */
-  box-shadow: inset 0 0 30px rgba(136, 204, 255, 0.07);
+  box-shadow: inset 0 0 30px rgb(136 204 255 / 0.07);
 }
 .post-list__search {
   isolation: isolate;
@@ -275,7 +280,7 @@ watch(listVisible, (visible) => {
   position: absolute;
   inset: 0;
   z-index: -2;
-  background: rgba(170, 221, 255, 0.35);
+  background: rgb(170 221 255 / 0.45);
   transition: background 0.15s ease;
 }
 .post-list__search::after {
@@ -283,7 +288,7 @@ watch(listVisible, (visible) => {
   position: absolute;
   inset: 1px;
   z-index: -1;
-  background: rgba(9, 14, 25, 0.7);
+  background: rgb(9 14 25 / 0.88);
   clip-path: polygon(
     7px 0,
     calc(100% - 7px) 0,
@@ -296,7 +301,23 @@ watch(listVisible, (visible) => {
   );
 }
 .post-list__search:focus-within::before {
-  background: rgba(138, 180, 255, 0.8);
+  background: var(--color-accent);
+}
+
+/* Phones: the list is a bottom sheet, clear of the home indicator. */
+@media (max-width: 640px) {
+  .post-list {
+    padding-right: var(--safe-r);
+    padding-bottom: var(--safe-b);
+    padding-left: var(--safe-l);
+    border-radius: 20px 20px 0 0;
+    clip-path: none;
+  }
+  .post-list::before,
+  .post-list::after {
+    border-radius: inherit;
+    clip-path: none;
+  }
 }
 
 /* Vue <Transition> hooks are runtime-generated class names, so they stay as
@@ -311,6 +332,13 @@ watch(listVisible, (visible) => {
 .list-slide-leave-to {
   opacity: 0;
   transform: translateX(-14px);
+}
+
+@media (max-width: 640px) {
+  .list-slide-enter-from,
+  .list-slide-leave-to {
+    transform: translateY(24px);
+  }
 }
 
 /* Reduced motion: keep the slide near-instant as well. */
