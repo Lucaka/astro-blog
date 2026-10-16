@@ -721,7 +721,7 @@ onMounted(() => {
       jets.update(simDt);
       dysonSphere.update(simDt);
       // Content stars get real dt for hover/filter easing, `motion` for orbits.
-      contentStars.update(dt, motion);
+      contentStars.update(dt, motion, camera);
     }
     if (impostors.group.visible) {
       impostors.update(dt, motion);
@@ -1004,7 +1004,10 @@ onMounted(() => {
     />
 
     <!-- First-visit hint: one quiet line, gone after a moment or a touch. -->
-    <HintToast :show="showHint">{{ t("hint.explore") }}</HintToast>
+    <!-- The exit pill shares this lane, so the first-visit hint yields to it. -->
+    <HintToast :show="showHint && !nearExitWall">{{
+      t("hint.explore")
+    }}</HintToast>
 
     <!-- Group view hint: how to get back into a galaxy. -->
     <HintToast :show="viewMode === 'group'">{{ t("hint.group") }}</HintToast>

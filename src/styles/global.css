@@ -1,11 +1,391 @@
 @import "tailwindcss";
 
-/* Shared universe palette, exposed as Tailwind color tokens (text-ink,
-   bg-accent, …). Values match the hand-written CSS the Vue components used
-   before the Tailwind migration. */
+/*
+  Universe palette and type. Solid ink steps replace opacity-dimmed text:
+  a translucent glyph picks up bloom and glass behind it, so contrast
+  changes with whatever is on screen. These colors stay put.
+*/
 @theme {
-  --color-ink: #eef2ff; /* bright foreground on glass panels */
-  --color-ink-soft: #d7def5; /* softer HUD foreground */
-  --color-ink-dim: #aab4d4; /* dimmed captions and counters */
-  --color-accent: #8ab4ff; /* link / focus blue */
+  --color-ink: #eef2ff; /* primary foreground */
+  --color-ink-soft: #d7def5; /* secondary HUD foreground */
+  --color-ink-body: #d4dcf4; /* article body */
+  --color-ink-meta: #b9c3e2; /* dates, captions, footer */
+  --color-ink-dim: #9eabcf; /* de-emphasized labels, still opaque */
+  --color-accent: #8ab4ff; /* links and focus */
+  --color-accent-strong: #c5d8ff; /* link hover */
+  --color-accent-deep: #3a4a7a; /* gradient tail */
+  --color-warn: #ffcc66;
+  --color-warn-ink: #ffe1a3;
+  --color-void: #05070f;
+  --color-void-deep: #000000;
+  --color-sky: #131a30;
+  --color-hud: #0c101c; /* floating HUD chips */
+  --color-panel: #0e121e; /* reading / guide glass */
+  --color-panel-deep: #0a0d16;
+  --color-skip: #1b2440;
+  --color-line: rgb(255 255 255 / 0.12);
+  --color-line-strong: rgb(255 255 255 / 0.22);
+  --color-fill: rgb(255 255 255 / 0.06);
+  --color-fill-strong: rgb(255 255 255 / 0.1);
+  --color-wire: #aaddff; /* Dyson-plate rim */
+  --color-wire-soft: #88ccff;
+  --color-selection: #3558b0;
+  --color-cat-blog: #ff7eb3;
+
+  --font-sans:
+    "PingFang TC", "PingFang HK", "Noto Sans TC", "Noto Sans CJK TC",
+    "Source Han Sans TC", "Microsoft JhengHei", "微軟正黑體", ui-sans-serif,
+    system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+    sans-serif;
+  --font-mono:
+    ui-monospace, "SFMono-Regular", "SF Mono", Menlo, Consolas,
+    "Liberation Mono", "Sarasa Mono TC", "Noto Sans Mono CJK TC", monospace;
+}
+
+/*
+  Home-scene overlay stack, bottom to top: legend row, then (phones only)
+  the breadcrumb, then the hint / exit-pill lane. Sidebar on desktop ends
+  above that lane so the centered toast never sits on the list.
+*/
+:root {
+  --hud-edge: clamp(16px, 3vw, 28px);
+  --hud-gap: 10px;
+  --legend-block: 4rem;
+  --crumb-block: 3.625rem;
+  --hint-block: 4.25rem;
+  --safe-t: env(safe-area-inset-top, 0px);
+  --safe-r: env(safe-area-inset-right, 0px);
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-l: env(safe-area-inset-left, 0px);
+  color-scheme: dark;
+}
+
+@layer base {
+  html {
+    font-family: var(--font-sans);
+    color: var(--color-ink);
+    background: var(--color-void);
+    text-wrap: pretty;
+    line-break: strict;
+    overflow-wrap: break-word;
+    word-break: normal;
+    hanging-punctuation: allow-end;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    text-wrap: balance;
+  }
+
+  code,
+  kbd,
+  pre,
+  samp {
+    font-family: var(--font-mono);
+  }
+}
+
+/* Keyboard focus is always a visible accent ring. */
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: var(--color-selection);
+  color: var(--color-ink);
+}
+
+/*
+  Rendered Markdown, shared by the static article page and the in-scene
+  reading panel. Tailwind preflight strips list markers and heading sizes,
+  so this block puts them back along with the content chrome.
+*/
+.prose {
+  font-size: 16px;
+  line-height: 1.85;
+  color: var(--color-ink-body);
+  overflow-wrap: break-word;
+}
+
+.prose--compact {
+  font-size: 15px;
+  line-height: 1.75;
+}
+
+.prose p {
+  margin: 0 0 14px;
+}
+
+.prose strong {
+  color: var(--color-ink);
+  font-weight: 600;
+}
+
+.prose h2,
+.prose h3,
+.prose h4 {
+  line-height: 1.35;
+  font-weight: 700;
+  color: var(--color-ink);
+  scroll-margin-top: 5rem;
+  text-wrap: balance;
+}
+
+.prose h2 {
+  margin: 1.75rem 0 0.65rem;
+  font-size: 1.35rem;
+}
+
+.prose h3 {
+  margin: 1.5rem 0 0.5rem;
+  font-size: 1.15rem;
+}
+
+.prose h4 {
+  margin: 1.25rem 0 0.45rem;
+  font-size: 1.05rem;
+}
+
+.prose--compact h2 {
+  margin: 1.4rem 0 0.55rem;
+  font-size: 1.2rem;
+}
+
+.prose--compact h3 {
+  margin: 1.2rem 0 0.45rem;
+  font-size: 1.08rem;
+}
+
+.prose--compact h4 {
+  margin: 1.05rem 0 0.4rem;
+  font-size: 1rem;
+}
+
+.prose ul,
+.prose ol {
+  margin: 0 0 14px;
+  padding-left: 1.4rem;
+}
+
+.prose ul {
+  list-style: disc;
+}
+
+.prose ol {
+  list-style: decimal;
+}
+
+.prose li {
+  margin: 5px 0;
+}
+
+.prose li > ul,
+.prose li > ol {
+  margin-bottom: 0;
+}
+
+.prose blockquote {
+  margin: 16px 0;
+  padding: 8px 16px;
+  border-left: 3px solid var(--color-line-strong);
+  color: var(--color-ink-meta);
+  font-style: italic;
+}
+
+.prose a {
+  color: var(--color-accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+  overflow-wrap: anywhere;
+}
+
+.prose a:hover {
+  color: var(--color-accent-strong);
+}
+
+.prose hr {
+  margin: 1.6rem 0;
+  border: 0;
+  border-top: 1px solid var(--color-line-strong);
+}
+
+.prose img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0 0 16px;
+  border-radius: 12px;
+}
+
+.prose .table-scroll {
+  max-width: 100%;
+  margin: 0 0 16px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.prose table {
+  width: 100%;
+  min-width: 28rem;
+  border-collapse: collapse;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--color-ink-body);
+}
+
+.prose th,
+.prose td {
+  border: 1px solid var(--color-line-strong);
+  padding: 8px 12px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.prose th {
+  color: var(--color-ink);
+  font-weight: 600;
+  background: var(--color-fill);
+}
+
+.prose kbd {
+  display: inline-block;
+  padding: 0.05em 0.45em;
+  border: 1px solid var(--color-line-strong);
+  border-bottom-width: 2px;
+  border-radius: 6px;
+  background: var(--color-fill-strong);
+  color: var(--color-ink);
+  font-size: 0.85em;
+  line-height: 1.4;
+}
+
+.prose details {
+  margin: 0 0 16px;
+  padding: 2px 14px 8px;
+  border: 1px solid var(--color-line);
+  border-radius: 12px;
+  background: var(--color-fill);
+}
+
+.prose summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--color-ink);
+}
+
+.prose :not(pre) > code {
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: var(--color-fill-strong);
+  color: var(--color-ink);
+  font-size: 0.9em;
+}
+
+.prose .expressive-code {
+  max-width: 100%;
+  margin: 0 0 16px;
+}
+
+.prose .expressive-code code {
+  padding: 0;
+  background: none;
+  border-radius: 0;
+  font-size: inherit;
+}
+
+.prose pre {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+/* Heading anchor: quiet on a pointer, always visible for touch. */
+.prose .heading-anchor {
+  margin-left: 0.35em;
+  color: var(--color-accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .prose .heading-anchor {
+    opacity: 0;
+    transition: opacity 0.15s ease;
+  }
+
+  .prose :is(h2, h3, h4):hover .heading-anchor,
+  .prose .heading-anchor:focus-visible {
+    opacity: 1;
+  }
+}
+
+@media (hover: none), (pointer: coarse) {
+  .prose .heading-anchor {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    min-height: 44px;
+    vertical-align: middle;
+  }
+}
+
+/* The modal has no hash-scroll affordance; keep its headings clean. */
+.reading-panel__body .heading-anchor {
+  display: none;
+}
+
+.prose .callout {
+  margin: 18px 0;
+  padding: 12px 16px;
+  border: 1px solid var(--color-line);
+  border-left-width: 3px;
+  border-radius: 10px;
+  background: var(--color-fill);
+}
+
+.prose .callout > :last-child {
+  margin-bottom: 0;
+}
+
+.prose .callout__label {
+  margin: 0 0 6px;
+  color: var(--color-ink-meta);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.prose .callout--info {
+  border-left-color: var(--color-accent);
+}
+
+.prose .callout--info .callout__label {
+  color: var(--color-accent);
+}
+
+.prose .callout--warning,
+.prose .callout--danger {
+  border-left-color: var(--color-warn);
+  background: rgb(255 204 102 / 0.08);
+}
+
+.prose .callout--warning .callout__label,
+.prose .callout--danger .callout__label {
+  color: var(--color-warn);
+}
+
+.prose .callout--tip,
+.prose .callout--success,
+.prose .callout--note {
+  border-left-color: var(--color-accent);
 }
