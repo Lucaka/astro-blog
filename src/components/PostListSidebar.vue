@@ -75,7 +75,7 @@ watch(listVisible, (visible) => {
        legend stack. -->
   <button
     type="button"
-    class="list-toggle fixed top-[calc(clamp(14px,3vw,24px)+var(--safe-t)+4.75rem)] left-[calc(var(--hud-edge)+var(--safe-l))] z-20 inline-flex min-h-11 cursor-pointer items-center gap-[7px] px-3.5 text-sm text-ink transition-[opacity,transform] duration-[350ms] motion-reduce:transition-none max-sm:top-[calc(12px+var(--safe-t))]"
+    class="list-toggle fixed top-[calc(clamp(14px,3vw,24px)+var(--safe-t)+4.75rem)] left-[calc(var(--hud-edge)+var(--safe-l))] z-20 inline-flex min-h-11 cursor-pointer items-center gap-xs px-3.5 text-sm text-ink transition-[opacity,transform] duration-[350ms] motion-reduce:transition-none max-sm:top-[calc(12px+var(--safe-t))]"
     :class="{ 'pointer-events-none -translate-y-2 opacity-0': !active }"
     :aria-expanded="showList"
     aria-controls="post-list-panel"
@@ -137,7 +137,7 @@ watch(listVisible, (visible) => {
         <li v-for="post in filteredPosts" :key="post.slug">
           <button
             type="button"
-            class="flex min-h-11 w-full cursor-pointer items-start gap-2.5 rounded-[10px] px-2.5 py-2.5 text-left transition-colors duration-150 hover:bg-fill-strong focus-visible:bg-fill-strong"
+            class="flex min-h-11 w-full cursor-pointer items-start gap-2.5 rounded-control px-2.5 py-2.5 text-left transition-colors duration-150 hover:bg-fill-strong focus-visible:bg-fill-strong"
             @mouseenter="emit('hover', post.slug)"
             @mouseleave="emit('hover', null)"
             @focus="emit('hover', post.slug)"
@@ -145,7 +145,7 @@ watch(listVisible, (visible) => {
             @click="emit('open', post)"
           >
             <span
-              class="mt-[5px] size-2 flex-none rounded-full"
+              class="mt-2xs size-2 flex-none rounded-full"
               :style="{ background: catColor(post.category) }"
             ></span>
             <span class="min-w-0">

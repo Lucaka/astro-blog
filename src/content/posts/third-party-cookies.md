@@ -28,18 +28,18 @@ postRequest(context: any, params: axiosParams) {
     });
   }
 ```
-https :![](https://i.imgur.com/wyfZnM2.png)
+![以 HTTPS 說明第三方 Cookie](../../assets/posts/cookies-https.png)
 
 
 * Origin:https - Host:https
-![](https://i.imgur.com/KFIwaOo.png)
+![Origin 與 Host 都是 HTTPS](../../assets/posts/cookies-https-https.png)
 
 * Origin:https - Host:http
-![](https://i.imgur.com/piGLE9E.png)
+![Origin 是 HTTPS、Host 是 HTTP](../../assets/posts/cookies-https-http.png)
 
 
 * Origin:http　- Host:https
-![](https://i.imgur.com/12q8YTA.png)
+![Origin 是 HTTP、Host 是 HTTPS](../../assets/posts/cookies-http-https.png)
 
 * Origin:http　- Host:http
-![](https://i.imgur.com/YN0YzO6.png)
+![Origin 與 Host 都是 HTTP](../../assets/posts/cookies-http-http.png)

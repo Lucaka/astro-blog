@@ -24,4 +24,4 @@ summary: details & summary 相關筆記與範例整理。
 </table>  
 </details>
 ```
-![](https://miro.medium.com/max/720/1*10AOkD_4d7DpQAi6RztB2Q.gif)
+![details 與 summary 展開後的表格](../../assets/posts/details-summary.gif)

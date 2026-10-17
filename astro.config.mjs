@@ -29,6 +29,9 @@ import rehypeContent from "./src/plugins/rehype-content.mjs";
 export default defineConfig({
   site: "https://www.6ka.dev/",
   base: "/",
+  // The universe index lists every post in a nav. Prefetch-all would pull
+  // the whole site on first paint and never let the network go idle.
+  prefetch: false,
   // i18n routing. `zh-hant` is the default locale and carries NO URL prefix,
   // so every existing page, feed and indexed link stays exactly where it is;
   // `en` (served under `/en/`) is additive. Translated UI strings live in
@@ -47,7 +50,9 @@ export default defineConfig({
       styleOverrides: {
         borderRadius: "12px",
         borderColor: "rgba(255, 255, 255, 0.08)",
-        codeFontSize: "14px",
+        // `--text-code` is 14px, and 13px under 640px (see global.css).
+        codeFontSize: "var(--text-code)",
+        codeLineHeight: "1.65",
         codeFontFamily:
           'var(--font-mono), ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace',
         frames: {

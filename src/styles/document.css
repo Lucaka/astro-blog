@@ -194,10 +194,10 @@ body.doc--lost {
   left: -9999px;
   z-index: 10;
   padding: 10px 14px;
-  border-radius: 0 0 8px 0;
+  border-radius: 0 0 var(--radius-chip) 0;
   background: var(--color-skip);
   color: var(--color-ink);
-  font-size: 14px;
+  font-size: var(--text-meta);
 }
 
 .skip-link:focus {
@@ -232,17 +232,20 @@ body.doc--lost {
 
 .site-header__end {
   display: flex;
-  flex: none;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  justify-content: flex-end;
+  gap: 4px 8px;
+  min-width: 0;
 }
 
 .back-link,
-.feed-link {
+.feed-link,
+.reading-toggle {
   display: inline-flex;
   align-items: center;
   min-height: 44px;
-  font-size: 15px;
+  font-size: var(--text-reading);
 }
 
 .back-link {
@@ -252,6 +255,23 @@ body.doc--lost {
 .feed-link {
   padding-inline: 4px;
   color: var(--color-accent);
+}
+
+.reading-toggle {
+  padding: 4px 10px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-chip);
+  background: var(--color-fill);
+  color: var(--color-ink-soft);
+  font-family: inherit;
+  font-size: var(--text-meta);
+  cursor: pointer;
+}
+
+.reading-toggle[aria-pressed="true"] {
+  border-color: color-mix(in srgb, var(--color-accent) 70%, transparent);
+  background: var(--color-fill-strong);
+  color: var(--color-ink);
 }
 
 .doc-main {
@@ -267,13 +287,13 @@ body.doc--lost {
   padding: 0 calc(clamp(20px, 5vw, 32px) + var(--safe-r))
     calc(40px + var(--safe-b)) calc(clamp(20px, 5vw, 32px) + var(--safe-l));
   color: var(--color-ink-meta);
-  font-size: 14px;
+  font-size: var(--text-meta);
   line-height: 1.6;
 }
 
 .doc-title {
   margin: 0 0 4px;
-  font-size: clamp(28px, 5vw, 38px);
+  font-size: var(--text-display);
   font-weight: 700;
   line-height: 1.2;
   text-wrap: balance;
@@ -282,6 +302,90 @@ body.doc--lost {
 .doc-sub {
   margin: 0 0 28px;
   color: var(--color-ink-meta);
-  font-size: 15px;
+  font-size: var(--text-reading);
   line-height: 1.6;
+}
+
+/*
+  Reading mode: a paper surface for long text. `html.reading` is set before
+  paint from localStorage, and again by the header toggle.
+*/
+html.reading {
+  color-scheme: light;
+}
+
+html.reading body.doc {
+  --color-ink: #1c1915;
+  --color-ink-soft: #3a342c;
+  --color-ink-body: #29241e;
+  --color-ink-meta: #5c564c;
+  --color-ink-dim: #6b6458;
+  --color-accent: #1d4e89;
+  --color-accent-strong: #14365f;
+  --color-accent-deep: #8aa4c4;
+  --color-void: #f6f1e7;
+  --color-void-deep: #efe6d6;
+  --color-sky: #f3eadc;
+  --color-fill: rgb(28 25 21 / 0.045);
+  --color-fill-strong: rgb(28 25 21 / 0.08);
+  --color-line: rgb(28 25 21 / 0.16);
+  --color-line-strong: rgb(28 25 21 / 0.32);
+  --color-selection: #f3c96b;
+  --color-warn: #8a5a00;
+  --color-warn-ink: #6d4700;
+  background: var(--color-void);
+}
+
+html.reading body.doc::before,
+html.reading body.doc::after {
+  opacity: 0.28;
+}
+
+html.reading .prose {
+  font-size: 1.125rem;
+  line-height: 1.9;
+}
+
+html.reading .tag-cloud__link {
+  color: color-mix(in srgb, var(--tag-color) 62%, #1c1915);
+  text-shadow: none;
+}
+
+/* prefers-contrast: stronger ink and borders on text pages, both themes. */
+@media (prefers-contrast: more) {
+  body.doc {
+    --color-ink: #ffffff;
+    --color-ink-soft: #f2f5ff;
+    --color-ink-body: #f7f8ff;
+    --color-ink-meta: #e0e6f8;
+    --color-ink-dim: #d5dcf3;
+    --color-accent: #d6e4ff;
+    --color-accent-strong: #ffffff;
+    --color-line: rgb(255 255 255 / 0.72);
+    --color-line-strong: #ffffff;
+    --color-fill: rgb(255 255 255 / 0.12);
+    --color-fill-strong: rgb(255 255 255 / 0.18);
+  }
+
+  body.doc::before,
+  body.doc::after {
+    opacity: 0.2;
+  }
+
+  html.reading body.doc {
+    --color-ink: #000000;
+    --color-ink-soft: #1a140c;
+    --color-ink-body: #100e0b;
+    --color-ink-meta: #2b261f;
+    --color-ink-dim: #3a342c;
+    --color-accent: #003366;
+    --color-accent-strong: #001a33;
+    --color-void: #fffdf8;
+    --color-void-deep: #ffffff;
+    --color-sky: #ffffff;
+    --color-line: #1c1915;
+    --color-line-strong: #000000;
+    --color-fill: transparent;
+    --color-fill-strong: rgb(0 0 0 / 0.06);
+  }
 }

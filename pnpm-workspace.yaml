@@ -1,6 +1,7 @@
 allowBuilds:
   esbuild: true
+  puppeteer: true
   sharp: true
 minimumReleaseAgeExclude:
-  - '@vue/language-core@3.3.6'
+  - "@vue/language-core@3.3.6"
   - vue-tsc@3.3.6
