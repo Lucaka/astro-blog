@@ -1,0 +1,79 @@
+---
+/**
+ * Scroll progress for a post. Browsers with `animation-timeline: scroll()`
+ * drive the bar from the document scroller; everyone else gets a scroll
+ * listener that writes the same scale.
+ */
+interface Props {
+	color: string;
+}
+const { color } = Astro.props;
+---
+
+<div
+	class="reading-progress"
+	style={`--post-accent: ${color}`}
+	aria-hidden="true"
+>
+</div>
+
+<script>
+	const reduceMotion = window.matchMedia(
+		"(prefers-reduced-motion: reduce)",
+	).matches;
+	// Scroll-timeline drives the bar when the browser can. Reduced motion
+	// turns that animation off, so the scroll listener fills in.
+	const supportsScrollTimeline =
+		!reduceMotion && CSS.supports("animation-timeline", "scroll()");
+
+	function updateProgress() {
+		if (supportsScrollTimeline) return;
+		const bar = document.querySelector(".reading-progress");
+		if (!(bar instanceof HTMLElement)) return;
+		const root = document.documentElement;
+		const max = root.scrollHeight - root.clientHeight;
+		const ratio = max > 0 ? Math.min(1, window.scrollY / max) : 0;
+		bar.style.transform = `scaleX(${ratio})`;
+	}
+
+	updateProgress();
+	window.addEventListener("scroll", updateProgress, { passive: true });
+	document.addEventListener("astro:page-load", updateProgress);
+</script>
+
+<style>
+	.reading-progress {
+		position: fixed;
+		top: 0;
+		left: 0;
+		z-index: 40;
+		width: 100%;
+		height: 3px;
+		transform: scaleX(0);
+		transform-origin: 0 50%;
+		background: var(--post-accent, var(--color-accent));
+		pointer-events: none;
+	}
+
+	@supports (animation-timeline: scroll()) {
+		.reading-progress {
+			animation: reading-progress linear both;
+			animation-timeline: scroll(root);
+		}
+	}
+
+	@keyframes reading-progress {
+		from {
+			transform: scaleX(0);
+		}
+		to {
+			transform: scaleX(1);
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.reading-progress {
+			animation: none;
+		}
+	}
+</style>

@@ -8,7 +8,7 @@ summary: 比較 Monolith、Multi-repo 與 Mono-repo 三種程式碼倉庫策略�
 
 當專案越來越大、模組越來越多，「程式碼要放在幾個 Git 倉庫」就成了一個需要取捨的問題。這篇整理三種常見策略，以及對應的建置工具。
 
-![Monorepo 示意圖](https://i.imgur.com/yjIOF7P.png)
+![Monorepo 示意圖](../../assets/posts/mono-repo.png)
 
 ## 三種策略
 

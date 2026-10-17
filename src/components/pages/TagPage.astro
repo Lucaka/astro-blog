@@ -1,8 +1,8 @@
 ---
 import type { CollectionEntry } from "astro:content";
 import { getAbsoluteLocaleUrl } from "astro:i18n";
-import { CATEGORY_META } from "../../data/posts";
 import { postPath, localePrefix } from "../../utils/posts";
+import { catColor, catLabel } from "../../utils/categories";
 import { tagSlug, tagPath, tagsIndexPath } from "../../utils/tags";
 import { useTranslations } from "../../i18n";
 import {
@@ -12,6 +12,9 @@ import {
 	type Locale,
 } from "../../i18n/config";
 import LanguageSwitch from "../LanguageSwitch.astro";
+import ReadingModeBoot from "../ReadingModeBoot.astro";
+import ReadingModeToggle from "../ReadingModeToggle.astro";
+import SiteRouter from "../SiteRouter.astro";
 import "../../styles/global.css";
 import "../../styles/document.css";
 
@@ -78,6 +81,8 @@ const jsonLd = JSON.stringify({
 <html lang={localeMeta.htmlLang}>
 	<head>
 		<meta charset="utf-8" />
+		<SiteRouter />
+		<ReadingModeBoot />
 		<link rel="icon" type="image/svg+xml" href={`${base}/favicon.svg`} />
 		<meta
 			name="viewport"
@@ -124,6 +129,7 @@ const jsonLd = JSON.stringify({
 			<a class="back-link" href={home}>{t("post.back")}</a>
 			<div class="site-header__end">
 				<LanguageSwitch locale={locale} path={`tags/${slug}/`} />
+				<ReadingModeToggle locale={locale} />
 				<a class="feed-link" href={tagsIndexPath(locale)}
 					>{t("tags.allTitle")}</a
 				>
@@ -143,17 +149,20 @@ const jsonLd = JSON.stringify({
 			<ul class="tag-list">
 				{
 					posts.map((post) => {
-						const meta = CATEGORY_META[post.data.category];
-						const color = "#" + meta.color.toString(16).padStart(6, "0");
+						const color = catColor(post.data.category);
 						return (
 							<li class="tag-list__item">
-								<a class="tag-list__link" href={postPath(post.id, locale)}>
+								<a
+									class="tag-list__link"
+									href={postPath(post.id, locale)}
+									style={`--card-accent: ${color}`}
+								>
 									<span class="tag-list__cat" style={`color: ${color}`}>
 										<span
 											class="tag-list__dot"
 											style={`background: ${color}`}
 										/>
-										{meta.label}
+										{catLabel(post.data.category)}
 									</span>
 									<span class="tag-list__heading">{post.data.title}</span>
 									<span class="tag-list__summary">{post.data.summary}</span>
@@ -178,8 +187,8 @@ const jsonLd = JSON.stringify({
 		gap: 8px;
 		margin: 0;
 		color: var(--color-ink-meta);
-		font-size: 14px;
-		letter-spacing: 0.04em;
+		font-size: var(--text-meta);
+		letter-spacing: var(--tracking-label);
 	}
 	.tag-page__eyebrow a {
 		display: inline-flex;
@@ -199,7 +208,7 @@ const jsonLd = JSON.stringify({
 	.tag-page__count {
 		margin: 0 0 28px;
 		color: var(--color-ink-meta);
-		font-size: 15px;
+		font-size: var(--text-reading);
 	}
 
 	.tag-list {
@@ -217,24 +226,39 @@ const jsonLd = JSON.stringify({
 		min-width: 0;
 		padding: 16px 18px;
 		border: 1px solid var(--color-line);
-		border-radius: 14px;
+		border-radius: var(--radius-card);
 		background: var(--color-fill);
 		color: var(--color-ink);
 		text-decoration: none;
 		transition:
-			background 0.15s ease,
-			border-color 0.15s ease;
+			transform 0.2s ease,
+			box-shadow 0.2s ease,
+			border-color 0.2s ease,
+			background 0.2s ease;
 	}
 	.tag-list__link:hover,
 	.tag-list__link:focus-visible {
-		border-color: var(--color-line-strong);
+		transform: translateY(-3px);
+		border-color: color-mix(
+			in srgb,
+			var(--card-accent, var(--color-accent)) 55%,
+			transparent
+		);
 		background: var(--color-fill-strong);
+		box-shadow:
+			var(--shadow-lift),
+			0 0 24px
+				color-mix(
+					in srgb,
+					var(--card-accent, var(--color-accent)) 36%,
+					transparent
+				);
 	}
 	.tag-list__cat {
 		display: inline-flex;
 		align-items: center;
-		gap: 7px;
-		font-size: 13px;
+		gap: var(--spacing-xs);
+		font-size: var(--text-caption);
 		font-weight: 600;
 		letter-spacing: 0.04em;
 		text-transform: uppercase;
@@ -245,7 +269,7 @@ const jsonLd = JSON.stringify({
 		border-radius: 50%;
 	}
 	.tag-list__heading {
-		font-size: 18px;
+		font-size: var(--text-card-title);
 		font-weight: 600;
 		line-height: 1.3;
 		overflow-wrap: anywhere;
@@ -257,11 +281,21 @@ const jsonLd = JSON.stringify({
 	}
 	.tag-list__summary {
 		color: var(--color-ink-body);
-		font-size: 15px;
+		font-size: var(--text-reading);
 		line-height: 1.6;
 	}
 	.tag-list__date {
 		color: var(--color-ink-meta);
-		font-size: 14px;
+		font-size: var(--text-meta);
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.tag-list__link {
+			transition: none;
+		}
+		.tag-list__link:hover,
+		.tag-list__link:focus-visible {
+			transform: none;
+		}
 	}
 </style>

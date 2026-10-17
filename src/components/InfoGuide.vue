@@ -21,7 +21,7 @@ const showInfo = ref(false);
   <button
     v-if="!hidden"
     type="button"
-    class="fixed right-[calc(var(--hud-edge)+var(--safe-r))] bottom-[calc(var(--hud-edge)+var(--safe-b))] z-20 inline-flex size-11 cursor-pointer items-center justify-center rounded-full border border-line-strong bg-hud/80 text-base leading-none font-semibold text-ink backdrop-blur-[6px] transition-colors duration-150 hover:bg-fill-strong focus-visible:bg-fill-strong"
+    class="fixed right-[calc(var(--hud-edge)+var(--safe-r))] bottom-[calc(var(--hud-edge)+var(--safe-b))] z-20 inline-flex size-11 cursor-pointer items-center justify-center rounded-full border border-line-strong bg-hud/80 text-base leading-none font-semibold text-ink backdrop-blur-hud transition-colors duration-150 hover:bg-fill-strong focus-visible:bg-fill-strong"
     :aria-label="t('guide.button')"
     @click="showInfo = true"
   >
@@ -40,7 +40,7 @@ const showInfo = ref(false);
     <!-- Guide items carry inline <strong> emphasis, so they're stored as
          trusted markup in the dictionary and rendered with v-html. -->
     <ul
-      class="list-disc pl-[18px] text-[15px] leading-[1.85] text-ink-body [&_strong]:font-semibold [&_strong]:text-accent [&>li+li]:mt-1.5"
+      class="list-disc pl-[18px] text-reading leading-[1.85] text-ink-body [&_strong]:font-semibold [&_strong]:text-accent [&>li+li]:mt-1.5"
     >
       <li v-html="t('guide.item1')"></li>
       <li v-html="t('guide.item2')"></li>

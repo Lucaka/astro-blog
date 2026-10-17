@@ -1,0 +1,52 @@
+---
+import type { Locale } from "../i18n/config";
+import { useTranslations } from "../i18n";
+
+interface Props {
+	locale: Locale;
+}
+const { locale } = Astro.props;
+const t = useTranslations(locale);
+---
+
+<button
+	type="button"
+	class="reading-toggle"
+	data-reading-toggle
+	aria-pressed="false"
+>
+	{t("post.readingMode")}
+</button>
+
+<script>
+	const KEY = "universe-reading-mode";
+
+	function sync() {
+		const on = document.documentElement.classList.contains("reading");
+		document
+			.querySelectorAll<HTMLButtonElement>("[data-reading-toggle]")
+			.forEach((btn) => {
+				btn.setAttribute("aria-pressed", on ? "true" : "false");
+			});
+	}
+
+	function setReading(on: boolean) {
+		document.documentElement.classList.toggle("reading", on);
+		try {
+			localStorage.setItem(KEY, on ? "1" : "0");
+		} catch {
+			/* private mode: the choice lasts for this page only */
+		}
+		sync();
+	}
+
+	sync();
+	document.addEventListener("astro:page-load", sync);
+	document.addEventListener("click", (event) => {
+		const target = event.target;
+		if (!(target instanceof Element)) return;
+		const btn = target.closest("[data-reading-toggle]");
+		if (!(btn instanceof HTMLButtonElement)) return;
+		setReading(!document.documentElement.classList.contains("reading"));
+	});
+</script>

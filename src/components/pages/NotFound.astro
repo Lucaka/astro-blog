@@ -4,6 +4,9 @@ import { byDateDesc, postPath, localePrefix } from "../../utils/posts";
 import { useTranslations } from "../../i18n";
 import { LOCALE_META, type Locale } from "../../i18n/config";
 import LanguageSwitch from "../LanguageSwitch.astro";
+import ReadingModeBoot from "../ReadingModeBoot.astro";
+import ReadingModeToggle from "../ReadingModeToggle.astro";
+import SiteRouter from "../SiteRouter.astro";
 import "../../styles/global.css";
 import "../../styles/document.css";
 
@@ -28,6 +31,8 @@ const home = `${base}${localePrefix(locale)}/`;
 <html lang={localeMeta.htmlLang}>
 	<head>
 		<meta charset="utf-8" />
+		<SiteRouter />
+		<ReadingModeBoot />
 		<link rel="icon" type="image/svg+xml" href={`${base}/favicon.svg`} />
 		<meta
 			name="viewport"
@@ -42,6 +47,7 @@ const home = `${base}${localePrefix(locale)}/`;
 		<main class="lost doc-main">
 			<div class="lost__lang">
 				<LanguageSwitch locale={locale} path="" />
+				<ReadingModeToggle locale={locale} />
 			</div>
 			<p class="lost__code" aria-hidden="true">404</p>
 			<h1 class="lost__title">{t("notFound.title")}</h1>
@@ -75,7 +81,10 @@ const home = `${base}${localePrefix(locale)}/`;
 	}
 	.lost__lang {
 		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
 		justify-content: flex-end;
+		gap: 4px 8px;
 		margin-bottom: 12px;
 	}
 	.lost__code {

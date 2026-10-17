@@ -12,4 +12,4 @@ summary: 可以使 DIV, P, UL 的文字內容可編輯
   123132
 </div>
 ```
-![](https://i.imgur.com/A0VHCcB.png)
+![contenteditable 讓區塊文字可以直接編輯](../../assets/posts/contenteditable.png)

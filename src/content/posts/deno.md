@@ -8,7 +8,7 @@ summary: Deno 環境使用ES modules
 
 Deno 環境使用ES modules
 ### VSCode plugin
-![](https://i.imgur.com/gLTEEcg.png =640x400)
+![Deno 的 VS Code 外掛](../../assets/posts/deno-vscode.png)
 
 ### cmd
 * args

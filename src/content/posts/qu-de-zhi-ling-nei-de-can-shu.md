@@ -31,4 +31,4 @@ commands : npx vue-cli-service serve -- --system=kch,ptch
 const { argv } = require('process')
 console.log(argv)
 ```
-![](https://i.imgur.com/C2Wdaav.png)
+![npm run 把額外參數傳給底層指令](../../assets/posts/command-args.png)

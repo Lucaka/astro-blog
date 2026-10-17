@@ -3,6 +3,8 @@ import { getCollection } from "astro:content";
 import { getAbsoluteLocaleUrl } from "astro:i18n";
 import { tagSlug, tagPath, tagsIndexPath } from "../../utils/tags";
 import { localePrefix } from "../../utils/posts";
+import { catColor } from "../../utils/categories";
+import type { PostCategory } from "../../data/posts";
 import { useTranslations } from "../../i18n";
 import {
 	LOCALES,
@@ -11,6 +13,9 @@ import {
 	type Locale,
 } from "../../i18n/config";
 import LanguageSwitch from "../LanguageSwitch.astro";
+import ReadingModeBoot from "../ReadingModeBoot.astro";
+import ReadingModeToggle from "../ReadingModeToggle.astro";
+import SiteRouter from "../SiteRouter.astro";
 import "../../styles/global.css";
 import "../../styles/document.css";
 
@@ -31,15 +36,51 @@ const localeMeta = LOCALE_META[locale];
 
 const entries = await getCollection("posts");
 
-const counts = new Map<string, number>();
+const counts = new Map<
+	string,
+	{ count: number; cats: Map<PostCategory, number> }
+>();
 for (const entry of entries) {
 	for (const tag of entry.data.tags) {
-		counts.set(tag, (counts.get(tag) ?? 0) + 1);
+		const rec = counts.get(tag) ?? { count: 0, cats: new Map() };
+		rec.count += 1;
+		rec.cats.set(
+			entry.data.category,
+			(rec.cats.get(entry.data.category) ?? 0) + 1,
+		);
+		counts.set(tag, rec);
 	}
 }
 
+const countValues = [...counts.values()].map((rec) => rec.count);
+const countMin = Math.min(...countValues);
+const countMax = Math.max(...countValues);
+
+function dominantCategory(cats: Map<PostCategory, number>): PostCategory {
+	let best: PostCategory = "blog";
+	let n = -1;
+	for (const [cat, count] of cats) {
+		if (count > n) {
+			best = cat;
+			n = count;
+		}
+	}
+	return best;
+}
+
 const tags = [...counts.entries()]
-	.map(([tag, count]) => ({ tag, count, slug: tagSlug(tag) }))
+	.map(([tag, rec]) => {
+		const span = countMax - countMin;
+		const size =
+			span === 0 ? 1.15 : 0.95 + ((rec.count - countMin) / span) * 1.1;
+		return {
+			tag,
+			count: rec.count,
+			slug: tagSlug(tag),
+			color: catColor(dominantCategory(rec.cats)),
+			size: size.toFixed(3),
+		};
+	})
 	.sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag));
 
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -74,6 +115,8 @@ const jsonLd = JSON.stringify({
 <html lang={localeMeta.htmlLang}>
 	<head>
 		<meta charset="utf-8" />
+		<SiteRouter />
+		<ReadingModeBoot />
 		<link rel="icon" type="image/svg+xml" href={`${base}/favicon.svg`} />
 		<meta
 			name="viewport"
@@ -118,6 +161,7 @@ const jsonLd = JSON.stringify({
 			<a class="back-link" href={home}>{t("post.back")}</a>
 			<div class="site-header__end">
 				<LanguageSwitch locale={locale} path="tags/" />
+				<ReadingModeToggle locale={locale} />
 				<a class="feed-link" href={feed}>{t("post.rss")}</a>
 			</div>
 		</header>
@@ -128,11 +172,15 @@ const jsonLd = JSON.stringify({
 				{t("tags.indexSub", { count: tags.length })}
 			</p>
 
-			<ul class="tag-cloud">
+			<ul class="tag-cloud" aria-label={t("tags.cloudLabel")}>
 				{
-					tags.map(({ tag, count, slug }) => (
+					tags.map(({ tag, count, slug, color, size }) => (
 						<li>
-							<a class="tag-cloud__link" href={tagPath(slug, locale)}>
+							<a
+								class="tag-cloud__link"
+								href={tagPath(slug, locale)}
+								style={`--tag-color: ${color}; --tag-size: ${size}`}
+							>
 								<span class="tag-cloud__name">{tag}</span>
 								<span class="tag-cloud__count">{count}</span>
 							</a>
@@ -152,38 +200,37 @@ const jsonLd = JSON.stringify({
 	.tag-cloud {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 10px;
+		align-items: center;
+		gap: 0.35rem 0.95rem;
 		margin: 0;
-		padding: 0;
+		padding: 0.5rem 0 0;
 		list-style: none;
 	}
 	.tag-cloud__link {
 		display: inline-flex;
-		align-items: center;
-		gap: 8px;
+		align-items: baseline;
+		gap: 0.35rem;
+		max-width: 100%;
 		min-height: 44px;
-		padding: 8px 14px;
-		border: 1px solid var(--color-line);
-		border-radius: 10px;
-		background: var(--color-fill);
-		color: var(--color-ink);
-		font-size: 15px;
+		padding: 0.15rem 0.1rem;
+		color: var(--tag-color);
+		font-size: calc(var(--tag-size) * 1rem);
+		font-weight: 600;
+		line-height: 1.25;
 		text-decoration: none;
-		transition:
-			background 0.15s ease,
-			border-color 0.15s ease;
+		text-shadow: 0 0 18px color-mix(in srgb, var(--tag-color) 40%, transparent);
+		overflow-wrap: anywhere;
 	}
 	.tag-cloud__link:hover,
 	.tag-cloud__link:focus-visible {
-		border-color: var(--color-line-strong);
-		background: var(--color-fill-strong);
+		text-decoration: underline;
+		text-underline-offset: 0.18em;
 	}
 	.tag-cloud__count {
-		padding: 1px 7px;
-		border-radius: 999px;
-		background: rgb(138 180 255 / 0.18);
-		color: var(--color-accent-strong);
-		font-size: 13px;
+		color: var(--color-ink-meta);
+		font-size: 0.62em;
+		font-weight: 600;
 		font-variant-numeric: tabular-nums;
+		text-shadow: none;
 	}
 </style>

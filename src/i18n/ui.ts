@@ -34,6 +34,7 @@ export const UI = {
     "tags.eyebrow": "標籤",
     "tags.skipToList": "跳到文章清單",
     "tags.postCount": "共 {count} 篇文章",
+    "tags.cloudLabel": "標籤雲",
     "tags.pageLabel": "標籤:{tag}",
     "tags.pageDescription":
       "所有標記「{tag}」的文章,共 {count} 篇 — James Universe。",
@@ -56,6 +57,9 @@ export const UI = {
     "post.older": "← 較舊一篇",
     "post.newer": "較新一篇 →",
     "post.untranslatedNotice": "本文尚無此語言版本，以下顯示原文。",
+    "post.toc": "目錄",
+    "post.tocLabel": "文章目錄",
+    "post.readingMode": "閱讀模式",
 
     // Language switcher
     "nav.language": "語言",
@@ -140,6 +144,7 @@ export const UI = {
     "tags.eyebrow": "Tags",
     "tags.skipToList": "Skip to the article list",
     "tags.postCount": "{count} articles",
+    "tags.cloudLabel": "Tag cloud",
     "tags.pageLabel": "Tag: {tag}",
     "tags.pageDescription":
       "All articles tagged “{tag}” — {count} in total, on James Universe.",
@@ -164,6 +169,9 @@ export const UI = {
     "post.newer": "Newer →",
     "post.untranslatedNotice":
       "This article isn't available in this language yet — showing the original below.",
+    "post.toc": "Contents",
+    "post.tocLabel": "Table of contents",
+    "post.readingMode": "Reading mode",
 
     // Language switcher
     "nav.language": "Language",

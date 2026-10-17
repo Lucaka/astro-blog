@@ -4,6 +4,7 @@ import { getAbsoluteLocaleUrl } from "astro:i18n";
 import "../../styles/global.css";
 import BlackHole from "../BlackHole.vue";
 import LanguageSwitch from "../LanguageSwitch.astro";
+import SiteRouter from "../SiteRouter.astro";
 import type { Post } from "../../data/posts";
 import {
 	byDateDesc,
@@ -98,6 +99,7 @@ const jsonLd = JSON.stringify({
 <html lang={localeMeta.htmlLang}>
 	<head>
 		<meta charset="utf-8" />
+		<SiteRouter />
 		<link rel="icon" type="image/svg+xml" href={`${base}/favicon.svg`} />
 		<meta
 			name="viewport"
@@ -245,6 +247,17 @@ const jsonLd = JSON.stringify({
 		top: calc(clamp(14px, 3vw, 24px) + var(--safe-t));
 		right: calc(var(--hud-edge) + var(--safe-r));
 		z-index: 20;
+	}
+
+	/*
+	  Below 640px the reading sheet is full-bleed, so its × sits on this
+	  switch (the scrim is above it, so the switch isn't clickable anyway).
+	  Hide the switch for as long as a modal dialog is open.
+	*/
+	@media (max-width: 639px) {
+		body:has([role="dialog"][aria-modal="true"]) .lang-switch-fixed {
+			visibility: hidden;
+		}
 	}
 
 	/* Static loading splash: contentful first paint before any JS arrives.

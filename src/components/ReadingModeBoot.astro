@@ -1,0 +1,13 @@
+<!--
+  Apply reading mode before first paint so a returning reader doesn't see
+  the dark theme flash to paper. The header toggle keeps localStorage in sync.
+-->
+<script is:inline>
+	try {
+		if (localStorage.getItem("universe-reading-mode") === "1") {
+			document.documentElement.classList.add("reading");
+		}
+	} catch {
+		/* private mode: the choice just won't persist */
+	}
+</script>

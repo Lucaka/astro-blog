@@ -40,6 +40,43 @@
   --font-mono:
     ui-monospace, "SFMono-Regular", "SF Mono", Menlo, Consolas,
     "Liberation Mono", "Sarasa Mono TC", "Noto Sans Mono CJK TC", monospace;
+
+  /* Type scale. Names stay off Tailwind's defaults so `text-sm` etc. hold. */
+  --text-caption: 0.75rem; /* 12 */
+  --text-meta: 0.875rem; /* 14 */
+  --text-reading: 0.9375rem; /* 15 */
+  --text-body: 1rem; /* 16 */
+  --text-lead: 1.0625rem; /* 17 */
+  --text-card-title: 1.125rem; /* 18 */
+  --text-panel: 1.625rem; /* 26 */
+  --text-display: clamp(1.75rem, 5vw, 2.375rem); /* 28–38 */
+  --text-code: 14px;
+
+  /* Radius scale */
+  --radius-chip: 0.5rem; /* 8 */
+  --radius-control: 0.625rem; /* 10 */
+  --radius-media: 0.75rem; /* 12 */
+  --radius-card: 0.875rem; /* 14 */
+  --radius-panel: 1.25rem; /* 20 */
+
+  /* Spacing steps shared by the HUD, glass panels, and article chrome. */
+  --spacing-2xs: 0.3125rem; /* 5 */
+  --spacing-xs: 0.4375rem; /* 7 */
+  --spacing-panel-x: 1.875rem; /* 30 */
+
+  /* Glass elevation and the soft lift used by cards. */
+  --shadow-glass: 0 12px 40px rgb(0 0 0 / 0.35);
+  --shadow-lift: 0 14px 32px rgb(0 0 0 / 0.34);
+
+  --blur-hud: 6px;
+  --tracking-label: 0.04em;
+}
+
+/* Code blocks: 14px by default, 13px on a phone. Expressive Code reads this. */
+@media (max-width: 40rem) {
+  :root {
+    --text-code: 13px;
+  }
 }
 
 /*
@@ -106,19 +143,19 @@
   so this block puts them back along with the content chrome.
 */
 .prose {
-  font-size: 16px;
+  font-size: var(--text-body);
   line-height: 1.85;
   color: var(--color-ink-body);
   overflow-wrap: break-word;
 }
 
 .prose--compact {
-  font-size: 15px;
+  font-size: var(--text-reading);
   line-height: 1.75;
 }
 
 .prose p {
-  margin: 0 0 14px;
+  margin: 0 0 0.875rem;
 }
 
 .prose strong {
@@ -219,8 +256,8 @@
   display: block;
   max-width: 100%;
   height: auto;
-  margin: 0 0 16px;
-  border-radius: 12px;
+  margin: 0 0 1rem;
+  border-radius: var(--radius-media);
 }
 
 .prose .table-scroll {
@@ -234,7 +271,7 @@
   width: 100%;
   min-width: 28rem;
   border-collapse: collapse;
-  font-size: 14px;
+  font-size: var(--text-meta);
   line-height: 1.5;
   color: var(--color-ink-body);
 }
@@ -258,7 +295,7 @@
   padding: 0.05em 0.45em;
   border: 1px solid var(--color-line-strong);
   border-bottom-width: 2px;
-  border-radius: 6px;
+  border-radius: var(--radius-chip);
   background: var(--color-fill-strong);
   color: var(--color-ink);
   font-size: 0.85em;
@@ -269,7 +306,7 @@
   margin: 0 0 16px;
   padding: 2px 14px 8px;
   border: 1px solid var(--color-line);
-  border-radius: 12px;
+  border-radius: var(--radius-media);
   background: var(--color-fill);
 }
 
@@ -299,7 +336,6 @@
   padding: 0;
   background: none;
   border-radius: 0;
-  font-size: inherit;
 }
 
 .prose pre {
@@ -348,7 +384,7 @@
   padding: 12px 16px;
   border: 1px solid var(--color-line);
   border-left-width: 3px;
-  border-radius: 10px;
+  border-radius: var(--radius-control);
   background: var(--color-fill);
 }
 
@@ -359,7 +395,7 @@
 .prose .callout__label {
   margin: 0 0 6px;
   color: var(--color-ink-meta);
-  font-size: 12px;
+  font-size: var(--text-caption);
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -388,4 +424,29 @@
 .prose .callout--success,
 .prose .callout--note {
   border-left-color: var(--color-accent);
+}
+
+/*
+  View transitions: Astro's router fades between pages. Readers who ask for
+  less motion get an instant swap — native groups and the fallback animation.
+*/
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+
+  [data-astro-transition-scope] {
+    animation: none !important;
+  }
+}
+
+/* High contrast for the in-scene reading sheet, which is text-heavy too. */
+@media (prefers-contrast: more) {
+  .glass-panel {
+    background-color: #0b0e18;
+    border-color: rgb(255 255 255 / 0.55);
+    color: #fff;
+  }
 }

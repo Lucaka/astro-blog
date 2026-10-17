@@ -10,7 +10,7 @@ defineProps<{
   <Transition name="hint-fade">
     <p
       v-if="show"
-      class="pointer-events-none fixed bottom-[calc(var(--hud-edge)+var(--legend-block)+var(--hud-gap))] left-1/2 z-20 w-max max-w-[min(26rem,calc(100vw-2rem-var(--safe-l)-var(--safe-r)))] -translate-x-1/2 rounded-2xl border border-line bg-hud/80 px-4 py-2.5 text-center text-[15px] leading-snug tracking-[0.02em] text-ink backdrop-blur-[6px] max-sm:bottom-[calc(var(--hud-edge)+var(--safe-b)+var(--legend-block)+var(--crumb-block)+var(--hud-gap)*2)]"
+      class="pointer-events-none fixed bottom-[calc(var(--hud-edge)+var(--legend-block)+var(--hud-gap))] left-1/2 z-20 w-max max-w-[min(26rem,calc(100vw-2rem-var(--safe-l)-var(--safe-r)))] -translate-x-1/2 rounded-2xl border border-line bg-hud/80 px-4 py-2.5 text-center text-reading leading-snug tracking-[0.02em] text-ink backdrop-blur-hud max-sm:bottom-[calc(var(--hud-edge)+var(--safe-b)+var(--legend-block)+var(--crumb-block)+var(--hud-gap)*2)]"
       aria-hidden="true"
     >
       <slot />

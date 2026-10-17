@@ -47,8 +47,8 @@ const scrimClass =
 // Kept as a grouped const (not a sorted inline string) because it's long and
 // carries a per-variant size branch — see ReadingPanel's note on this pattern.
 const panelClass = [
-  "glass-panel relative overflow-y-auto rounded-[20px] border border-line",
-  "px-[30px] py-8 pr-16 text-ink shadow-[0_12px_40px_rgba(0,0,0,0.35)] backdrop-blur-lg",
+  "glass-panel relative overflow-y-auto rounded-panel border border-line",
+  "px-panel-x py-8 pr-16 text-ink shadow-glass backdrop-blur-lg",
   props.solid ? "bg-panel/80" : "bg-panel/55",
   // Mobile: full-bleed sheet. Reading stays near 80% so type doesn't pick up bloom.
   "max-sm:h-dvh max-sm:max-w-full max-sm:rounded-none max-sm:border-x-0",

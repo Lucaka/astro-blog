@@ -22,7 +22,7 @@ const legend = (Object.keys(CATEGORY_META) as PostCategory[]).map((c) => ({
 
 <template>
   <div
-    class="legend-scroll fixed bottom-[calc(var(--hud-edge)+var(--safe-b))] left-[calc(var(--hud-edge)+var(--safe-l))] z-20 flex max-w-[calc(100vw-var(--safe-l)-var(--safe-r)-var(--hud-edge)*2-3.25rem)] flex-nowrap gap-1 overflow-x-auto rounded-xl border border-line bg-hud/80 px-2 py-1.5 text-sm text-ink backdrop-blur-[6px] transition-[opacity,transform] duration-[350ms] motion-reduce:transition-none"
+    class="legend-scroll fixed bottom-[calc(var(--hud-edge)+var(--safe-b))] left-[calc(var(--hud-edge)+var(--safe-l))] z-20 flex max-w-[calc(100vw-var(--safe-l)-var(--safe-r)-var(--hud-edge)*2-3.25rem)] flex-nowrap gap-1 overflow-x-auto rounded-xl border border-line bg-hud/80 px-2 py-1.5 text-sm text-ink backdrop-blur-hud transition-[opacity,transform] duration-[350ms] motion-reduce:transition-none"
     :class="{ 'pointer-events-none translate-y-2 opacity-0': hidden }"
   >
     <button
