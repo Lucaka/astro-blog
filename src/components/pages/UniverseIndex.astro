@@ -377,4 +377,32 @@ const jsonLd = JSON.stringify({
 		color: var(--color-ink-meta);
 		font-size: 14px;
 	}
+
+	/* 2D list chosen from the loading gate, or forced when WebGL is missing.
+	   Same promotion the <noscript> block uses, with a solid backdrop. */
+	body.universe-fallback #universe-loading {
+		display: none !important;
+	}
+	body.universe-fallback .post-index {
+		position: fixed !important;
+		inset: 0 !important;
+		z-index: 25 !important;
+		overflow: auto !important;
+		pointer-events: auto !important;
+		padding: 48px clamp(20px, 6vw, 64px) !important;
+		background: #05070f;
+	}
+	body.universe-fallback .post-index__title,
+	body.universe-fallback .post-index a {
+		position: static !important;
+		width: auto !important;
+		height: auto !important;
+		clip-path: none !important;
+	}
+	body.universe-fallback .post-index li {
+		margin: 14px 0 !important;
+	}
+	body.universe-fallback .lang-switch-fixed {
+		z-index: 40;
+	}
 </style>

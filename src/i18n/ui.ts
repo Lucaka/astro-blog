@@ -117,6 +117,60 @@ export const UI = {
 
     // Glass panel (shared modal shell)
     "panel.close": "關閉",
+
+    // Quick search
+    "search.open": "搜尋",
+    "search.pill": "搜尋",
+    "search.placeholder": "搜尋文章或標籤",
+    "search.label": "搜尋文章與標籤",
+    "search.posts": "文章",
+    "search.tags": "標籤",
+    "search.empty": "沒有符合的結果",
+    "search.hint": "輸入標題或標籤",
+    "search.fly": "飛向星球",
+    "search.openPost": "開啟文章",
+    "search.mobileHint": "點選結果 → 飛向星球 · 長按 → 開啟文章",
+    "search.cancel": "取消",
+    "search.close": "關閉搜尋",
+    "search.tagCount": "{count} 篇文章",
+    "search.kbd.select": "選擇",
+    "search.kbd.move": "飛向",
+    "search.kbd.open": "開啟",
+    "search.kbd.close": "關閉",
+
+    // Loading gate
+    "gate.brand": "6ka.dev",
+    "gate.stage.boot": "載入星圖…",
+    "gate.stage.stars": "鋪設星空…",
+    "gate.stage.disk": "點亮吸積盤…",
+    "gate.stage.camera": "校準鏡頭…",
+    "gate.stage.ready": "星圖就緒",
+    "gate.quality.high": "高畫質",
+    "gate.quality.highBody": "完整泛光、高解析粒子與陰影。適合桌面與外接電源。",
+    "gate.quality.balanced": "平衡",
+    "gate.quality.balancedBody":
+      "保留視覺重點，適度降低粒子與後處理。多數裝置的最佳選擇。",
+    "gate.quality.saver": "省電",
+    "gate.quality.saverBody": "關閉泛光、降低解析度。手機與低電量時建議使用。",
+    "gate.recommended": "推薦",
+    "gate.auto": "自動偵測",
+    "gate.autoChosen": "已依裝置自動選擇：{quality}",
+    "gate.enter": "進入宇宙",
+    "gate.list": "改用文章列表",
+    "gate.webgl": "這個瀏覽器沒有可用的 WebGL，已改為文章列表。",
+
+    // In-scene graphics
+    "settings.open": "畫面設定",
+    "settings.title": "畫面設定",
+    "settings.quality": "畫質",
+    "settings.bloom": "泛光效果",
+    "settings.bloomHint": "星球與黑洞的發光後處理",
+    "settings.autoLower": "自動降低畫質",
+    "settings.autoLowerHint": "FPS < 30 時切換到省電",
+    "settings.reduced": "減少動態",
+    "settings.reducedHint": "暫停漂移與非必要動畫",
+    "settings.note": "設定會記在此裝置。開啟文章時會暫停場景動態以省電。",
+    "settings.fps": "FPS {n}",
   },
 
   en: {
@@ -232,6 +286,64 @@ export const UI = {
 
     // Glass panel (shared modal shell)
     "panel.close": "Close",
+
+    // Quick search
+    "search.open": "Search",
+    "search.pill": "Search",
+    "search.placeholder": "Search articles or tags",
+    "search.label": "Search articles and tags",
+    "search.posts": "Articles",
+    "search.tags": "Tags",
+    "search.empty": "No matches",
+    "search.hint": "Type a title or a tag",
+    "search.fly": "Fly to star",
+    "search.openPost": "Open article",
+    "search.mobileHint": "Tap a result to fly · long-press to open",
+    "search.cancel": "Cancel",
+    "search.close": "Close search",
+    "search.tagCount": "{count} articles",
+    "search.kbd.select": "Select",
+    "search.kbd.move": "Fly",
+    "search.kbd.open": "Open",
+    "search.kbd.close": "Close",
+
+    // Loading gate
+    "gate.brand": "6ka.dev",
+    "gate.stage.boot": "Loading the star map…",
+    "gate.stage.stars": "Laying out the starfield…",
+    "gate.stage.disk": "Lighting the accretion disk…",
+    "gate.stage.camera": "Calibrating the camera…",
+    "gate.stage.ready": "Star map ready",
+    "gate.quality.high": "High",
+    "gate.quality.highBody":
+      "Full bloom, high-resolution particles and shading. Best on desktop power.",
+    "gate.quality.balanced": "Balanced",
+    "gate.quality.balancedBody":
+      "Keeps the visual focus and eases particles and post-processing. The best default for most devices.",
+    "gate.quality.saver": "Saver",
+    "gate.quality.saverBody":
+      "Bloom off and a lower resolution. Use on a phone or a low battery.",
+    "gate.recommended": "Recommended",
+    "gate.auto": "Auto",
+    "gate.autoChosen": "Chosen for this device: {quality}",
+    "gate.enter": "Enter universe",
+    "gate.list": "Use post list",
+    "gate.webgl":
+      "WebGL isn't available in this browser, so the article list is shown instead.",
+
+    // In-scene graphics
+    "settings.open": "Graphics settings",
+    "settings.title": "Graphics",
+    "settings.quality": "Quality",
+    "settings.bloom": "Bloom",
+    "settings.bloomHint": "Glow on stars and the black hole",
+    "settings.autoLower": "Auto-lower quality",
+    "settings.autoLowerHint": "Switch to saver when FPS < 30",
+    "settings.reduced": "Reduced motion",
+    "settings.reducedHint": "Pause drift and non-essential animation",
+    "settings.note":
+      "Saved on this device. Opening an article pauses scene motion.",
+    "settings.fps": "FPS {n}",
   },
 } as const satisfies Record<Locale, Record<string, string>>;
 
