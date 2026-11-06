@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
@@ -20,7 +20,7 @@ import { createTidalDebris } from "../three/blackhole/tidalDebris";
 import { createContentStars } from "../three/blackhole/contentStars";
 import { createGalaxyImpostors } from "../three/blackhole/galaxyImpostors";
 import { CATEGORY_META, type Post, type PostCategory } from "../data/posts";
-import { postMeta, postPath } from "../utils/posts";
+import { postMeta, slugFromPostHash } from "../utils/posts";
 import {
   partitionIntoGalaxies,
   findGalaxyOf,
@@ -28,6 +28,15 @@ import {
 } from "../utils/galaxies";
 import { provideI18n } from "../i18n/vue";
 import type { Locale } from "../i18n/config";
+import {
+  QUALITY_PRESET,
+  bloomStrength,
+  loadGraphics,
+  saveGraphics,
+  detectQuality,
+  webglAvailable,
+  type QualityId,
+} from "../utils/graphics";
 
 import UniverseBreadcrumb from "./UniverseBreadcrumb.vue";
 import PostListSidebar from "./PostListSidebar.vue";
@@ -37,12 +46,73 @@ import ExitChargePill from "./ExitChargePill.vue";
 import InfoGuide from "./InfoGuide.vue";
 import StarTooltip from "./StarTooltip.vue";
 import ReadingPanel from "./ReadingPanel.vue";
+import QuickSearch from "./QuickSearch.vue";
+import UniverseGate from "./UniverseGate.vue";
+import GraphicsSettings from "./GraphicsSettings.vue";
 
 // Post metadata comes from the Markdown content collection via index.astro,
 // along with the active locale. Provide one locale-bound `t` to every child
 // component in the island (breadcrumb, sidebar, guide, panels…).
 const props = defineProps<{ posts: Post[]; locale: Locale }>();
 const t = provideI18n(props.locale);
+
+// Graphics gate + in-scene gear. Returning visitors (`entered`) skip the
+// gate; the scene still builds with the saved preset.
+const graphics = reactive(loadGraphics());
+const detectedQuality = detectQuality();
+const entered = ref(graphics.entered);
+const loadProgress = ref(graphics.entered ? 8 : 0);
+const loadStage = ref("");
+const sceneReady = ref(false);
+const webglOk = ref(true);
+const fps = ref(0);
+const throttled = ref(false);
+const listFallback = ref(false);
+const osReduced = ref(
+  typeof window !== "undefined" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+);
+let enterArmed = false;
+
+function persistGraphics() {
+  saveGraphics({
+    quality: graphics.quality,
+    bloom: graphics.bloom,
+    autoLower: graphics.autoLower,
+    reducedMotion: graphics.reducedMotion,
+    entered: entered.value,
+  });
+}
+function chooseQuality(id: QualityId) {
+  graphics.quality = id;
+  persistGraphics();
+}
+function chooseGateQuality(id: QualityId) {
+  graphics.quality = id;
+  graphics.bloom = id !== "saver";
+  persistGraphics();
+}
+function enterUniverse() {
+  if (!sceneReady.value) {
+    enterArmed = true;
+    return;
+  }
+  entered.value = true;
+  graphics.entered = true;
+  persistGraphics();
+}
+function usePostList() {
+  listFallback.value = true;
+  document.body.classList.add("universe-fallback");
+  document.getElementById("universe-loading")?.remove();
+  entered.value = true;
+}
+function onSearchFly(slug: string) {
+  flyToStar(slug);
+}
+function onSearchOpen(post: Post) {
+  flyToPostAndOpen(post);
+}
 
 // `?demo=N` appends N synthetic posts (client-side only) so the multi-galaxy
 // group view and its transitions can be exercised before the real archive
@@ -131,39 +201,133 @@ function openGroupView() {
   requestGroupView();
 }
 
-// --- Deep links: modal state lives in the URL ------------------------------
-// Opening a star pushState()s to the post's real /posts/[slug]/ page, so the
-// address bar is always shareable; reload lands on the static article page,
-// and Back/Forward open and close the modal via popstate.
+// --- Deep links: the reading panel lives in the URL ------------------------
+// The panel is not a document navigation. Its history entry is a fragment on
+// this same index page (`#post/<slug>`), so Back/Forward only open and close
+// it. Pushing the standalone `/posts/<slug>/` path instead makes Astro's
+// client router treat the later `popstate` as a cross-document traversal and
+// swap the page — the Vue island remounts, the canvas is created again, and
+// the camera, galaxy and zoom are gone.
+//
+// `UniverseHistoryGuard` (inline, before `<ClientRouter>`) owns that popstate.
+// It runs before the router's listener — popstate listeners fire in
+// registration order, so a later capture listener cannot stop the router —
+// and dispatches `universe:history` for this island to apply.
+type UniverseHistoryState = {
+  universe?: string;
+  index?: number;
+  scrollX?: number;
+  scrollY?: number;
+};
+
+function readUniverseSlug(state: unknown): string | null {
+  if (!state || typeof state !== "object") return null;
+  const slug = (state as UniverseHistoryState).universe;
+  return typeof slug === "string" && slug ? slug : null;
+}
+
 function openPost(post: Post, pushHistory = true) {
   selectedHtml.value =
     document.getElementById(`post-body-${post.slug}`)?.innerHTML ?? "";
   selectedPost.value = post;
-  if (pushHistory) {
-    history.pushState(
-      { universe: post.slug },
-      "",
-      postPath(post.slug, props.locale),
+  if (!pushHistory || readUniverseSlug(history.state) === post.slug) return;
+  const url = new URL(location.href);
+  // The URL setter encodes the fragment once. Pre-encoding the slug would
+  // turn a later non-ASCII id into `%25xx`.
+  url.hash = `post/${post.slug}`;
+  const prev = (history.state ?? {}) as UniverseHistoryState;
+  // Keep the router's history index. A higher index here collides with the
+  // next real navigation the router pushes from its own counter.
+  history.pushState(
+    {
+      universe: post.slug,
+      index: typeof prev.index === "number" ? prev.index : 0,
+      scrollX: prev.scrollX ?? 0,
+      scrollY: prev.scrollY ?? 0,
+    },
+    "",
+    url,
+  );
+}
+
+function historyBack(): Promise<void> {
+  // After a view-transition traversal, `history.back()` can be ignored while
+  // `navigation.back()` still moves the session history. The close button is a
+  // user gesture, so the Navigation API accepts it.
+  const nav = (
+    window as Window & {
+      navigation?: {
+        canGoBack: boolean;
+        back: () => { finished: Promise<void> };
+      };
+    }
+  ).navigation;
+  if (nav?.canGoBack) {
+    return nav.back().finished.then(
+      () => undefined,
+      () => undefined,
     );
   }
+  history.back();
+  return Promise.resolve();
 }
+
 function closeModal() {
-  if (history.state?.universe) {
-    // We pushed this entry: going back restores the index URL and the
-    // popstate handler clears the modal, keeping history clean.
-    history.back();
-  } else {
-    selectedPost.value = null;
+  const entrySlug = readUniverseSlug(history.state);
+  // Clear on this instance immediately. The popstate path updates state too,
+  // but that listener can belong to an island the router already swapped out.
+  selectedPost.value = null;
+  if (entrySlug) {
+    const before = location.href;
+    void historyBack().finally(() => {
+      if (location.href !== before) return;
+      const url = new URL(location.href);
+      url.hash = "";
+      const prev = (history.state ?? {}) as UniverseHistoryState;
+      history.replaceState(
+        {
+          index: prev.index ?? 0,
+          scrollX: prev.scrollX ?? 0,
+          scrollY: prev.scrollY ?? 0,
+        },
+        "",
+        url,
+      );
+    });
+    return;
+  }
+  if (slugFromPostHash(location.hash)) {
+    const url = new URL(location.href);
+    url.hash = "";
+    history.replaceState(history.state, "", url);
   }
 }
-function handlePopstate(event: PopStateEvent) {
-  const slug = event.state?.universe as string | undefined;
+
+function handleUniverseHistory(event: Event) {
+  const slug = (event as CustomEvent<{ slug: string | null }>).detail?.slug;
   const post = slug ? allPosts.find((p) => p.slug === slug) : undefined;
-  if (post) {
+  if (post) openPost(post, false);
+  else selectedPost.value = null;
+}
+
+function adoptLandingDeepLink() {
+  const slug =
+    slugFromPostHash(location.hash) ?? readUniverseSlug(history.state);
+  if (!slug) return;
+  const post = allPosts.find((p) => p.slug === slug);
+  if (!post) return;
+  // Already our history entry (Back from the standalone article restores it).
+  // Open the panel in place; pushing again would stack another copy.
+  if (readUniverseSlug(history.state) === post.slug) {
     openPost(post, false);
-  } else {
-    selectedPost.value = null;
+    return;
   }
+  // Cold load of `/#post/<slug>`: the landing entry IS the deep link, so split
+  // it into [index, deep link]. Back then closes the panel instead of leaving.
+  const bare = new URL(location.href);
+  bare.hash = "";
+  history.replaceState(history.state, "", bare);
+  openPost(post, true);
 }
 
 function toggleCategory(category: PostCategory) {
@@ -177,11 +341,24 @@ function toggleCategory(category: PostCategory) {
   applyFilter(next);
 }
 
-onMounted(() => {
+onMounted(async () => {
   const el = container.value;
   if (!el) return;
 
-  window.addEventListener("popstate", handlePopstate);
+  window.addEventListener("universe:history", handleUniverseHistory);
+  let alive = true;
+  onBeforeUnmount(() => {
+    alive = false;
+  });
+
+  if (!webglAvailable()) {
+    webglOk.value = false;
+    usePostList();
+    onBeforeUnmount(() => {
+      window.removeEventListener("universe:history", handleUniverseHistory);
+    });
+    return;
+  }
 
   // First-visit hint: fade in once, dismissed by time or first interaction.
   let hintTimer = 0;
@@ -198,18 +375,23 @@ onMounted(() => {
   // Low-power heuristic (small screens / touch): fewer particles and a lower
   // pixel-ratio cap keep phones cool; inertia off avoids fighting touch drags.
   const coarsePointer = window.matchMedia("(pointer: coarse)").matches;
-  const smallScreen = window.matchMedia("(max-width: 768px)").matches;
-  const lowPower = coarsePointer || smallScreen;
 
   // Respect prefers-reduced-motion (live, in case the OS setting changes):
   // orbital/drift animation stops and bloom is dialed down, but the scene
   // still renders and stars stay hoverable/clickable.
   const reducedQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
-  let reducedMotion = reducedQuery.matches;
+  let reducedMotion = reducedQuery.matches || graphics.reducedMotion === true;
   const handleReducedChange = (e: MediaQueryListEvent) => {
-    reducedMotion = e.matches;
+    osReduced.value = e.matches;
+    reducedMotion = e.matches || graphics.reducedMotion === true;
   };
   reducedQuery.addEventListener("change", handleReducedChange);
+
+  loadStage.value = t("gate.stage.boot");
+  loadProgress.value = 8;
+  await new Promise((resolve) => requestAnimationFrame(() => resolve()));
+  if (!alive) return;
+  const boot = QUALITY_PRESET[graphics.quality];
 
   const scene = new THREE.Scene();
 
@@ -221,8 +403,8 @@ onMounted(() => {
   );
   camera.position.set(0, 5.5, 16);
 
-  const renderer = new THREE.WebGLRenderer({ antialias: true });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, lowPower ? 1.5 : 2));
+  const renderer = new THREE.WebGLRenderer({ antialias: boot.antialias });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, boot.dpr));
   renderer.setSize(el.clientWidth, el.clientHeight);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -242,11 +424,27 @@ onMounted(() => {
   // 360° around the black hole without flipping underneath the "floor".
   controls.minPolarAngle = THREE.MathUtils.degToRad(15);
   controls.maxPolarAngle = THREE.MathUtils.degToRad(85);
-  const starfield = createStarfield(lowPower ? 1800 : 4000);
+  loadStage.value = t("gate.stage.stars");
+  loadProgress.value = 28;
+  await new Promise((resolve) => requestAnimationFrame(() => resolve()));
+  if (!alive) {
+    renderer.dispose();
+    controls.dispose();
+    return;
+  }
+  const starfield = createStarfield(boot.stars);
   const nebula = createNebula();
   const gravityGrid = createGravityGrid();
-  const accretionDisk = createAccretionDisk({ count: lowPower ? 3000 : 7000 });
-  const jets = createJets({ countPerJet: lowPower ? 500 : 1200 });
+  loadStage.value = t("gate.stage.disk");
+  loadProgress.value = 52;
+  await new Promise((resolve) => requestAnimationFrame(() => resolve()));
+  if (!alive) {
+    renderer.dispose();
+    controls.dispose();
+    return;
+  }
+  const accretionDisk = createAccretionDisk({ count: boot.disk });
+  const jets = createJets({ countPerJet: boot.jets });
   const dysonSphere = createDysonSphere();
   const einsteinRing = createEinsteinRing();
   const tidalDebris = createTidalDebris();
@@ -318,6 +516,28 @@ onMounted(() => {
   );
   composer.addPass(bloomPass);
   composer.addPass(new OutputPass());
+  loadStage.value = t("gate.stage.camera");
+  loadProgress.value = 84;
+
+  function applyLive() {
+    const cap = throttled.value ? 1 : QUALITY_PRESET[graphics.quality].dpr;
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, cap));
+    const width = el.clientWidth;
+    const height = el.clientHeight;
+    renderer.setSize(width, height);
+    composer.setSize(width, height);
+    bloomPass.setSize(width, height);
+    lensingPass.uniforms.uAspect.value = width / height;
+    const strength = throttled.value
+      ? 0
+      : bloomStrength(graphics.quality, graphics.bloom);
+    bloomPass.enabled = strength > 0;
+    bloomPass.strength = strength;
+  }
+  watch(
+    () => [graphics.quality, graphics.bloom, throttled.value] as const,
+    () => applyLive(),
+  );
 
   // --- Reading mode -------------------------------------------------------
   // When an article opens, the scene eases into a dimmer, slower, more
@@ -356,11 +576,28 @@ onMounted(() => {
 
   // Opening a post drives reading mode (via the same decoupled event) and
   // freezes camera rotation so the backdrop holds still while reading.
+  // OrbitControls keeps applying leftover drag inertia inside update() even
+  // when `enabled` is false, which would walk the camera off the pose the
+  // reader left. Drop that inertia and hold the pose until the panel closes.
   watch(selectedPost, (post) => {
     window.dispatchEvent(
       new CustomEvent("blackhole:reading", { detail: post !== null }),
     );
     controls.enabled = post === null && !transition;
+    if (post) {
+      const position = camera.position.clone();
+      const quaternion = camera.quaternion.clone();
+      const target = controls.target.clone();
+      const damping = controls.enableDamping;
+      // update() with damping off consumes leftover drag and also rewrites
+      // the quaternion via lookAt. Put the pose back; only the inertia is dropped.
+      controls.enableDamping = false;
+      controls.update();
+      controls.enableDamping = damping;
+      camera.position.copy(position);
+      camera.quaternion.copy(quaternion);
+      controls.target.copy(target);
+    }
   });
 
   // --- Semantic zoom: galaxy <-> galaxy group ------------------------------
@@ -678,11 +915,45 @@ onMounted(() => {
   const clock = new THREE.Clock();
   let frameId = 0;
   let running = false;
+  let fpsFrames = 0;
+  let fpsAccum = 0;
+  let lowStreak = 0;
+  let highStreak = 0;
 
   function animate() {
-    if (!running) return;
+    if (!running || listFallback.value) {
+      running = false;
+      return;
+    }
     frameId = requestAnimationFrame(animate);
     const dt = Math.min(clock.getDelta(), 0.1);
+    reducedMotion = osReduced.value || graphics.reducedMotion === true;
+
+    // Frame-rate sample for the settings readout and the auto-saver.
+    fpsFrames += 1;
+    fpsAccum += dt;
+    if (fpsAccum >= 0.5) {
+      const sample = fpsFrames / fpsAccum;
+      fps.value = Math.round(sample);
+      fpsFrames = 0;
+      fpsAccum = 0;
+      if (graphics.autoLower) {
+        if (sample < 30) {
+          lowStreak += 1;
+          highStreak = 0;
+        } else if (sample > 48) {
+          highStreak += 1;
+          lowStreak = 0;
+        } else {
+          lowStreak = 0;
+          highStreak = 0;
+        }
+        if (!throttled.value && lowStreak >= 3) throttled.value = true;
+        else if (throttled.value && highStreak >= 4) throttled.value = false;
+      } else if (throttled.value) {
+        throttled.value = false;
+      }
+    }
 
     // Ease toward the current reading target (~0.3s response), then drive the
     // scene's brightness, bloom, particle opacity and animation speed from it.
@@ -693,11 +964,16 @@ onMounted(() => {
       READING_STATE.exposure,
       mix,
     );
+    const userBloom = throttled.value
+      ? 0
+      : bloomStrength(graphics.quality, graphics.bloom);
+    // Reduced motion also means reduced glow: bloom is the single biggest
+    // "shimmer" contributor, so it drops with the animation.
+    const exploreBloom = reducedMotion ? Math.min(0.32, userBloom) : userBloom;
+    bloomPass.enabled = userBloom > 0;
     bloomPass.strength = THREE.MathUtils.lerp(
-      // Reduced motion also means reduced glow: bloom is the single biggest
-      // "shimmer" contributor, so it drops with the animation.
-      reducedMotion ? 0.32 : EXPLORE_STATE.bloom,
-      READING_STATE.bloom,
+      exploreBloom,
+      userBloom > 0 ? READING_STATE.bloom : 0,
       mix,
     );
     const opacity = THREE.MathUtils.lerp(
@@ -882,7 +1158,8 @@ onMounted(() => {
 
     // OrbitControls' update() re-clamps the camera to its distance limits,
     // which would fight the transition's own camera flight — skip it there.
-    if (!transition) controls.update();
+    // Also hold the pose while a post is open (see the selectedPost watch).
+    if (!transition && !selectedPost.value) controls.update();
 
     // Feed the lensing pass how edge-on the disk is: 0 looking straight down
     // at it, 1 with the camera in its plane. Drives the fold-over arcs
@@ -917,7 +1194,12 @@ onMounted(() => {
     }
   }
   document.addEventListener("visibilitychange", handleVisibility);
+  applyLive();
   start();
+  loadStage.value = t("gate.stage.ready");
+  loadProgress.value = 100;
+  sceneReady.value = true;
+  if (enterArmed) enterUniverse();
 
   // Fade the static loading splash once the scene has actually painted a
   // frame (two rAFs after start = first frame is on screen), then drop it.
@@ -931,10 +1213,14 @@ onMounted(() => {
     );
   }
 
+  // After the reading-mode watch is registered, so a landed deep link dims
+  // the scene and freezes orbit the same way a click does.
+  adoptLandingDeepLink();
+
   onBeforeUnmount(() => {
     stop();
     window.clearTimeout(hintTimer);
-    window.removeEventListener("popstate", handlePopstate);
+    window.removeEventListener("universe:history", handleUniverseHistory);
     window.removeEventListener("resize", handleResize);
     window.removeEventListener(
       "blackhole:reading",
@@ -979,67 +1265,115 @@ onMounted(() => {
       class="fixed inset-0 h-screen w-screen overflow-hidden bg-black [&_canvas]:block"
     ></div>
 
-    <!-- Where am I: 星系群 › 星系 breadcrumb; the group crumb zooms out. -->
-    <UniverseBreadcrumb
-      :view-mode="viewMode"
-      :active-galaxy="activeGalaxy"
-      :hidden="!!selectedPost"
-      @open-group="openGroupView"
+    <UniverseGate
+      v-if="webglOk && !entered"
+      :progress="loadProgress"
+      :stage="loadStage"
+      :quality="graphics.quality"
+      :detected="detectedQuality"
+      :ready="true"
+      @enter="enterUniverse"
+      @fallback="usePostList"
+      @quality="chooseGateQuality"
     />
 
-    <!-- Article list sidebar: a normal blog-style index for quick browsing.
+    <template v-if="entered && webglOk && !listFallback">
+      <!-- Where am I: 星系群 › 星系 breadcrumb; the group crumb zooms out. -->
+      <UniverseBreadcrumb
+        :view-mode="viewMode"
+        :active-galaxy="activeGalaxy"
+        :hidden="!!selectedPost"
+        @open-group="openGroupView"
+      />
+
+      <QuickSearch
+        :posts="allPosts"
+        :hidden="!!selectedPost"
+        @fly="onSearchFly"
+        @open="onSearchOpen"
+      />
+
+      <!-- Article list sidebar: a normal blog-style index for quick browsing.
          Hovering an entry highlights its star; clicking opens the post. -->
-    <PostListSidebar
-      :posts="allPosts"
-      :active="!selectedPost && viewMode === 'galaxy'"
-      @hover="hoverListPost"
-      @open="openFromList"
-    />
+      <PostListSidebar
+        :posts="allPosts"
+        :active="!selectedPost && viewMode === 'galaxy'"
+        @hover="hoverListPost"
+        @open="openFromList"
+      />
 
-    <!-- Category legend: click a category to spotlight only its stars. -->
-    <CategoryLegend
-      :active="activeCategories"
-      :hidden="!!selectedPost || viewMode !== 'galaxy'"
-      @toggle="toggleCategory"
-    />
+      <!-- Category legend: click a category to spotlight only its stars. -->
+      <CategoryLegend
+        :active="activeCategories"
+        :hidden="!!selectedPost || viewMode !== 'galaxy'"
+        @toggle="toggleCategory"
+      />
 
-    <!-- First-visit hint: one quiet line, gone after a moment or a touch. -->
-    <!-- The exit pill shares this lane, so the first-visit hint yields to it. -->
-    <HintToast :show="showHint && !nearExitWall">{{
-      t("hint.explore")
-    }}</HintToast>
+      <!-- First-visit hint: one quiet line, gone after a moment or a touch. -->
+      <!-- The exit pill shares this lane, so the first-visit hint yields to it. -->
+      <HintToast :show="showHint && !nearExitWall">{{
+        t("hint.explore")
+      }}</HintToast>
 
-    <!-- Group view hint: how to get back into a galaxy. -->
-    <HintToast :show="viewMode === 'group'">{{ t("hint.group") }}</HintToast>
+      <!-- Group view hint: how to get back into a galaxy. -->
+      <HintToast :show="viewMode === 'group'">{{ t("hint.group") }}</HintToast>
 
-    <!-- Exit pill: parked at the zoom wall — keep scrolling to leave. -->
-    <ExitChargePill :visible="nearExitWall" :progress="exitProgress" />
+      <!-- Exit pill: parked at the zoom wall — keep scrolling to leave. -->
+      <ExitChargePill :visible="nearExitWall" :progress="exitProgress" />
 
-    <!-- Corner "?" button + controls guide panel. -->
-    <InfoGuide :hidden="!!selectedPost" :multi-galaxy="galaxies.length > 1" />
+      <!-- Corner "?" button + controls guide panel. Gear sits just to its left. -->
+      <GraphicsSettings
+        :hidden="!!selectedPost"
+        :settings="graphics"
+        :fps="fps"
+        :throttled="throttled"
+        :os-reduced="osReduced"
+        @quality="chooseQuality"
+        @bloom="
+          (on) => {
+            graphics.bloom = on;
+            persistGraphics();
+          }
+        "
+        @auto-lower="
+          (on) => {
+            graphics.autoLower = on;
+            if (!on) throttled = false;
+            persistGraphics();
+          }
+        "
+        @reduced="
+          (on) => {
+            graphics.reducedMotion = on;
+            persistGraphics();
+          }
+        "
+      />
+      <InfoGuide :hidden="!!selectedPost" :multi-galaxy="galaxies.length > 1" />
 
-    <!-- Hover tooltip: minimal card floated above the focused star. -->
-    <StarTooltip
-      v-if="hoveredPost && !selectedPost && hoverStyle"
-      :position="hoverStyle"
-      :title="hoveredPost.title"
-      :meta="postMeta(hoveredPost, t)"
-      :tags="hoveredPost.tags"
-    />
+      <!-- Hover tooltip: minimal card floated above the focused star. -->
+      <StarTooltip
+        v-if="hoveredPost && !selectedPost && hoverStyle"
+        :position="hoverStyle"
+        :title="hoveredPost.title"
+        :meta="postMeta(hoveredPost, t)"
+        :tags="hoveredPost.tags"
+      />
 
-    <!-- Hover tooltip for a galaxy impostor in the group view. -->
-    <StarTooltip
-      v-if="hoveredGalaxy && hoverStyle && viewMode === 'group'"
-      :position="hoverStyle"
-      :title="t('galaxy.name', { n: hoveredGalaxy.index })"
-      :meta="`${hoveredGalaxy.era} · ${t('galaxy.postCount', { count: hoveredGalaxy.posts.length })}`"
-    />
+      <!-- Hover tooltip for a galaxy impostor in the group view. -->
+      <StarTooltip
+        v-if="hoveredGalaxy && hoverStyle && viewMode === 'group'"
+        :position="hoverStyle"
+        :title="t('galaxy.name', { n: hoveredGalaxy.index })"
+        :meta="`${hoveredGalaxy.era} · ${t('galaxy.postCount', { count: hoveredGalaxy.posts.length })}`"
+      />
 
-    <!-- Reading panel: glassmorphism card shown when a post is open. -->
-    <ReadingPanel
-      :post="selectedPost"
-      :html="selectedHtml"
-      @close="closeModal"
-    />
+      <!-- Reading panel: glassmorphism card shown when a post is open. -->
+      <ReadingPanel
+        :post="selectedPost"
+        :html="selectedHtml"
+        @close="closeModal"
+      />
+    </template>
   </div>
 </template>

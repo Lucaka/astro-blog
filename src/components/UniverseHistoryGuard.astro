@@ -1,0 +1,68 @@
+---
+/**
+ * Claims reading-panel history traversals before Astro's client router sees
+ * them. Must be a classic inline script placed *before* `<ClientRouter>`:
+ * `popstate` listeners run in registration order, and module scripts are
+ * deferred, so a listener registered later (even in the capture phase) cannot
+ * stop the router. The router would otherwise treat Back/Forward as a
+ * document swap and recreate the WebGL canvas.
+ *
+ * The island listens for `universe:history`. `/posts/<slug>/` is untouched.
+ */
+---
+
+<script is:inline>
+	(function () {
+		if (window.__universeHistoryGuard) return;
+		window.__universeHistoryGuard = true;
+
+		var current = history.state;
+		var nativePush = history.pushState.bind(history);
+		var nativeReplace = history.replaceState.bind(history);
+		history.pushState = function (state, title, url) {
+			current = state;
+			return nativePush(state, title, url);
+		};
+		history.replaceState = function (state, title, url) {
+			current = state;
+			return nativeReplace(state, title, url);
+		};
+
+		function onUniverse() {
+			return document.documentElement.hasAttribute("data-universe");
+		}
+
+		window.addEventListener(
+			"popstate",
+			function (event) {
+				var previous = current;
+				current = event.state;
+				if (!onUniverse()) return;
+				var entered =
+					event.state && typeof event.state.universe === "string"
+						? event.state.universe
+						: null;
+				var left = previous && typeof previous.universe === "string";
+				if (!entered && !left) return;
+				event.stopImmediatePropagation();
+				window.dispatchEvent(
+					new CustomEvent("universe:history", {
+						detail: { slug: entered },
+					}),
+				);
+			},
+			true,
+		);
+
+		// Same-document traversals that still reach the router (both URLs are
+		// this index) must not swap the live scene out from under the camera.
+		document.addEventListener("astro:before-swap", function (event) {
+			if (!onUniverse() || event.navigationType !== "traverse") return;
+			var from = event.from;
+			var to = event.to;
+			if (!from || !to || from.origin !== to.origin) return;
+			if (from.pathname !== to.pathname || from.search !== to.search) return;
+			event.swap = function () {};
+		});
+	})();
+</script>

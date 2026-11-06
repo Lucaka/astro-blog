@@ -1,6 +1,7 @@
 /**
  * Helpers shared by the index page, the static post pages, the RSS feed and
- * the client island (which uses `postPath` for pushState deep links).
+ * the client island (which uses `postPath` for the standalone article and
+ * `postHash` for the in-scene reading-panel deep link).
  */
 import type { TranslateFn } from "../i18n";
 import { DEFAULT_LOCALE, type Locale } from "../i18n/config";
@@ -27,9 +28,8 @@ export function parseDisplayDate(display: string): Date {
 export function readingTimeMinutes(markdown: string): number {
   const cjk = markdown.match(/[一-鿿㐀-䶿]/g)?.length ?? 0;
   const words =
-    markdown
-      .replace(/[一-鿿㐀-䶿]/g, " ")
-      .match(/[A-Za-z0-9_'-]+/g)?.length ?? 0;
+    markdown.replace(/[一-鿿㐀-䶿]/g, " ").match(/[A-Za-z0-9_'-]+/g)?.length ??
+    0;
   return Math.max(1, Math.round(cjk / 300 + words / 200));
 }
 
@@ -42,7 +42,10 @@ export function byDateDesc(
   a: { data: { date: string } },
   b: { data: { date: string } },
 ): number {
-  return parseDisplayDate(b.data.date).getTime() - parseDisplayDate(a.data.date).getTime();
+  return (
+    parseDisplayDate(b.data.date).getTime() -
+    parseDisplayDate(a.data.date).getTime()
+  );
 }
 
 /** "2025.04 · 約 5 分鐘" meta line shown in tooltips, the sidebar and panel. */
@@ -56,7 +59,35 @@ export function postMeta(
 }
 
 /** Site-relative path of a post page, respecting the base and the locale. */
-export function postPath(slug: string, locale: Locale = DEFAULT_LOCALE): string {
+export function postPath(
+  slug: string,
+  locale: Locale = DEFAULT_LOCALE,
+): string {
   const base = import.meta.env.BASE_URL.replace(/\/$/, "");
   return `${base}${localePrefix(locale)}/posts/${slug}/`;
+}
+
+/**
+ * Fragment that opens a post in the universe reading panel (`#post/<slug>`).
+ * It stays on the index document: the standalone article keeps `postPath`,
+ * and the client router treats the fragment as an intra-page history entry
+ * instead of swapping the 3D scene out.
+ */
+const POST_HASH_PREFIX = "#post/";
+
+export function postHash(slug: string): string {
+  return `${POST_HASH_PREFIX}${encodeURIComponent(slug)}`;
+}
+
+/** Slug encoded in a reading-panel fragment, or null when the hash is something else. */
+export function slugFromPostHash(hash: string): string | null {
+  if (!hash.startsWith(POST_HASH_PREFIX)) return null;
+  const raw = hash.slice(POST_HASH_PREFIX.length);
+  if (!raw) return null;
+  try {
+    const slug = decodeURIComponent(raw);
+    return slug || null;
+  } catch {
+    return null;
+  }
 }
