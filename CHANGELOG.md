@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.0](https://github.com/Lucaka/astro-blog/compare/astro-blog-v0.2.0...astro-blog-v0.3.0) (2026-11-06)
+
+
+### ✨ New Features
+
+* [Base] - 閱讀面板關閉鈕不再與語言切換重疊 ([#27](https://github.com/Lucaka/astro-blog/issues/27)) ([2b29866](https://github.com/Lucaka/astro-blog/commit/2b298664b10218644ec44505f0ed5cc6975a8c86))
+
+
+### 🐛 Bug Fixes
+
+* [BlackHole] - 關閉閱讀面板不再重載場景 ([#28](https://github.com/Lucaka/astro-blog/issues/28)) ([3015c48](https://github.com/Lucaka/astro-blog/commit/3015c481b8b0e11078987ff256136d46d6ee5f3b))
+
 ## [0.2.0](https://github.com/Lucaka/astro-blog/compare/astro-blog-v0.1.0...astro-blog-v0.2.0) (2026-07-23)
 
 
