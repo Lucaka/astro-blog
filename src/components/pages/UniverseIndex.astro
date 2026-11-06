@@ -5,6 +5,7 @@ import "../../styles/global.css";
 import BlackHole from "../BlackHole.vue";
 import LanguageSwitch from "../LanguageSwitch.astro";
 import SiteRouter from "../SiteRouter.astro";
+import UniverseHistoryGuard from "../UniverseHistoryGuard.astro";
 import type { Post } from "../../data/posts";
 import {
 	byDateDesc,
@@ -96,9 +97,10 @@ const jsonLd = JSON.stringify({
 }).replace(/</g, "\\u003c");
 ---
 
-<html lang={localeMeta.htmlLang}>
+<html lang={localeMeta.htmlLang} data-universe>
 	<head>
 		<meta charset="utf-8" />
+		<UniverseHistoryGuard />
 		<SiteRouter />
 		<link rel="icon" type="image/svg+xml" href={`${base}/favicon.svg`} />
 		<meta

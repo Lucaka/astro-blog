@@ -117,7 +117,7 @@ summary: 一行摘要,會出現在星星懸停提示與閱讀面板頂端
 
 ## 🔍 SEO 與無障礙
 
-雖然首頁是 3D 互動場景,但每篇文章都有一份**靜態、可分享、可索引、免 JS 即可閱讀**的獨立頁(`posts/[slug].astro`);首頁開啟星星時會以 `pushState` 同步到對應網址。SEO 相關措施包含:
+雖然首頁是 3D 互動場景,但每篇文章都有一份**靜態、可分享、可索引、免 JS 即可閱讀**的獨立頁(`posts/[slug].astro`)。首頁開啟星星時只在同一頁加上 `#post/<slug>`(重新整理或直接打開該連結會留在宇宙場景並打開閱讀面板,返回則關上面板且不重載 WebGL);獨立文章頁網址維持 `/posts/[slug]/`。SEO 相關措施包含:
 
 - 每頁的 `<title>` / `description` / `canonical`、Open Graph 與 Twitter Card 標籤、`og.png` 分享圖。
 - **JSON-LD 結構化資料**:首頁輸出 `Blog`、文章頁輸出 `BlogPosting`(內嵌時已跳脫 `<` 以避免破壞 script 標籤)。

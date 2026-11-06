@@ -20,7 +20,7 @@ import { createTidalDebris } from "../three/blackhole/tidalDebris";
 import { createContentStars } from "../three/blackhole/contentStars";
 import { createGalaxyImpostors } from "../three/blackhole/galaxyImpostors";
 import { CATEGORY_META, type Post, type PostCategory } from "../data/posts";
-import { postMeta, postPath } from "../utils/posts";
+import { postMeta, slugFromPostHash } from "../utils/posts";
 import {
   partitionIntoGalaxies,
   findGalaxyOf,
@@ -131,39 +131,133 @@ function openGroupView() {
   requestGroupView();
 }
 
-// --- Deep links: modal state lives in the URL ------------------------------
-// Opening a star pushState()s to the post's real /posts/[slug]/ page, so the
-// address bar is always shareable; reload lands on the static article page,
-// and Back/Forward open and close the modal via popstate.
+// --- Deep links: the reading panel lives in the URL ------------------------
+// The panel is not a document navigation. Its history entry is a fragment on
+// this same index page (`#post/<slug>`), so Back/Forward only open and close
+// it. Pushing the standalone `/posts/<slug>/` path instead makes Astro's
+// client router treat the later `popstate` as a cross-document traversal and
+// swap the page — the Vue island remounts, the canvas is created again, and
+// the camera, galaxy and zoom are gone.
+//
+// `UniverseHistoryGuard` (inline, before `<ClientRouter>`) owns that popstate.
+// It runs before the router's listener — popstate listeners fire in
+// registration order, so a later capture listener cannot stop the router —
+// and dispatches `universe:history` for this island to apply.
+type UniverseHistoryState = {
+  universe?: string;
+  index?: number;
+  scrollX?: number;
+  scrollY?: number;
+};
+
+function readUniverseSlug(state: unknown): string | null {
+  if (!state || typeof state !== "object") return null;
+  const slug = (state as UniverseHistoryState).universe;
+  return typeof slug === "string" && slug ? slug : null;
+}
+
 function openPost(post: Post, pushHistory = true) {
   selectedHtml.value =
     document.getElementById(`post-body-${post.slug}`)?.innerHTML ?? "";
   selectedPost.value = post;
-  if (pushHistory) {
-    history.pushState(
-      { universe: post.slug },
-      "",
-      postPath(post.slug, props.locale),
+  if (!pushHistory || readUniverseSlug(history.state) === post.slug) return;
+  const url = new URL(location.href);
+  // The URL setter encodes the fragment once. Pre-encoding the slug would
+  // turn a later non-ASCII id into `%25xx`.
+  url.hash = `post/${post.slug}`;
+  const prev = (history.state ?? {}) as UniverseHistoryState;
+  // Keep the router's history index. A higher index here collides with the
+  // next real navigation the router pushes from its own counter.
+  history.pushState(
+    {
+      universe: post.slug,
+      index: typeof prev.index === "number" ? prev.index : 0,
+      scrollX: prev.scrollX ?? 0,
+      scrollY: prev.scrollY ?? 0,
+    },
+    "",
+    url,
+  );
+}
+
+function historyBack(): Promise<void> {
+  // After a view-transition traversal, `history.back()` can be ignored while
+  // `navigation.back()` still moves the session history. The close button is a
+  // user gesture, so the Navigation API accepts it.
+  const nav = (
+    window as Window & {
+      navigation?: {
+        canGoBack: boolean;
+        back: () => { finished: Promise<void> };
+      };
+    }
+  ).navigation;
+  if (nav?.canGoBack) {
+    return nav.back().finished.then(
+      () => undefined,
+      () => undefined,
     );
   }
+  history.back();
+  return Promise.resolve();
 }
+
 function closeModal() {
-  if (history.state?.universe) {
-    // We pushed this entry: going back restores the index URL and the
-    // popstate handler clears the modal, keeping history clean.
-    history.back();
-  } else {
-    selectedPost.value = null;
+  const entrySlug = readUniverseSlug(history.state);
+  // Clear on this instance immediately. The popstate path updates state too,
+  // but that listener can belong to an island the router already swapped out.
+  selectedPost.value = null;
+  if (entrySlug) {
+    const before = location.href;
+    void historyBack().finally(() => {
+      if (location.href !== before) return;
+      const url = new URL(location.href);
+      url.hash = "";
+      const prev = (history.state ?? {}) as UniverseHistoryState;
+      history.replaceState(
+        {
+          index: prev.index ?? 0,
+          scrollX: prev.scrollX ?? 0,
+          scrollY: prev.scrollY ?? 0,
+        },
+        "",
+        url,
+      );
+    });
+    return;
+  }
+  if (slugFromPostHash(location.hash)) {
+    const url = new URL(location.href);
+    url.hash = "";
+    history.replaceState(history.state, "", url);
   }
 }
-function handlePopstate(event: PopStateEvent) {
-  const slug = event.state?.universe as string | undefined;
+
+function handleUniverseHistory(event: Event) {
+  const slug = (event as CustomEvent<{ slug: string | null }>).detail?.slug;
   const post = slug ? allPosts.find((p) => p.slug === slug) : undefined;
-  if (post) {
+  if (post) openPost(post, false);
+  else selectedPost.value = null;
+}
+
+function adoptLandingDeepLink() {
+  const slug =
+    slugFromPostHash(location.hash) ?? readUniverseSlug(history.state);
+  if (!slug) return;
+  const post = allPosts.find((p) => p.slug === slug);
+  if (!post) return;
+  // Already our history entry (Back from the standalone article restores it).
+  // Open the panel in place; pushing again would stack another copy.
+  if (readUniverseSlug(history.state) === post.slug) {
     openPost(post, false);
-  } else {
-    selectedPost.value = null;
+    return;
   }
+  // Cold load of `/#post/<slug>`: the landing entry IS the deep link, so split
+  // it into [index, deep link]. Back then closes the panel instead of leaving.
+  const bare = new URL(location.href);
+  bare.hash = "";
+  history.replaceState(history.state, "", bare);
+  openPost(post, true);
 }
 
 function toggleCategory(category: PostCategory) {
@@ -181,7 +275,7 @@ onMounted(() => {
   const el = container.value;
   if (!el) return;
 
-  window.addEventListener("popstate", handlePopstate);
+  window.addEventListener("universe:history", handleUniverseHistory);
 
   // First-visit hint: fade in once, dismissed by time or first interaction.
   let hintTimer = 0;
@@ -356,11 +450,28 @@ onMounted(() => {
 
   // Opening a post drives reading mode (via the same decoupled event) and
   // freezes camera rotation so the backdrop holds still while reading.
+  // OrbitControls keeps applying leftover drag inertia inside update() even
+  // when `enabled` is false, which would walk the camera off the pose the
+  // reader left. Drop that inertia and hold the pose until the panel closes.
   watch(selectedPost, (post) => {
     window.dispatchEvent(
       new CustomEvent("blackhole:reading", { detail: post !== null }),
     );
     controls.enabled = post === null && !transition;
+    if (post) {
+      const position = camera.position.clone();
+      const quaternion = camera.quaternion.clone();
+      const target = controls.target.clone();
+      const damping = controls.enableDamping;
+      // update() with damping off consumes leftover drag and also rewrites
+      // the quaternion via lookAt. Put the pose back; only the inertia is dropped.
+      controls.enableDamping = false;
+      controls.update();
+      controls.enableDamping = damping;
+      camera.position.copy(position);
+      camera.quaternion.copy(quaternion);
+      controls.target.copy(target);
+    }
   });
 
   // --- Semantic zoom: galaxy <-> galaxy group ------------------------------
@@ -882,7 +993,8 @@ onMounted(() => {
 
     // OrbitControls' update() re-clamps the camera to its distance limits,
     // which would fight the transition's own camera flight — skip it there.
-    if (!transition) controls.update();
+    // Also hold the pose while a post is open (see the selectedPost watch).
+    if (!transition && !selectedPost.value) controls.update();
 
     // Feed the lensing pass how edge-on the disk is: 0 looking straight down
     // at it, 1 with the camera in its plane. Drives the fold-over arcs
@@ -931,10 +1043,14 @@ onMounted(() => {
     );
   }
 
+  // After the reading-mode watch is registered, so a landed deep link dims
+  // the scene and freezes orbit the same way a click does.
+  adoptLandingDeepLink();
+
   onBeforeUnmount(() => {
     stop();
     window.clearTimeout(hintTimer);
-    window.removeEventListener("popstate", handlePopstate);
+    window.removeEventListener("universe:history", handleUniverseHistory);
     window.removeEventListener("resize", handleResize);
     window.removeEventListener(
       "blackhole:reading",
