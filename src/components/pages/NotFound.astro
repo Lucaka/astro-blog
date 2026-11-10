@@ -3,7 +3,9 @@ import { getCollection } from "astro:content";
 import { byDateDesc, postPath, localePrefix } from "../../utils/posts";
 import { useTranslations } from "../../i18n";
 import { LOCALE_META, type Locale } from "../../i18n/config";
+import GitHubLink from "../GitHubLink.astro";
 import LanguageSwitch from "../LanguageSwitch.astro";
+import RelMe from "../RelMe.astro";
 import ReadingModeBoot from "../ReadingModeBoot.astro";
 import ReadingModeToggle from "../ReadingModeToggle.astro";
 import SiteRouter from "../SiteRouter.astro";
@@ -34,6 +36,7 @@ const home = `${base}${localePrefix(locale)}/`;
 		<SiteRouter />
 		<ReadingModeBoot />
 		<link rel="icon" type="image/svg+xml" href={`${base}/favicon.svg`} />
+		<RelMe />
 		<meta
 			name="viewport"
 			content="width=device-width, initial-scale=1, viewport-fit=cover"
@@ -70,6 +73,10 @@ const home = `${base}${localePrefix(locale)}/`;
 				</ul>
 			</section>
 		</main>
+
+		<footer class="site-footer">
+			<GitHubLink locale={locale} />
+		</footer>
 	</body>
 </html>
 

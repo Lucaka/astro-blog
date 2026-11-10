@@ -3,7 +3,9 @@ import { getCollection, render } from "astro:content";
 import { getAbsoluteLocaleUrl } from "astro:i18n";
 import "../../styles/global.css";
 import BlackHole from "../BlackHole.vue";
+import GitHubLink from "../GitHubLink.astro";
 import LanguageSwitch from "../LanguageSwitch.astro";
+import RelMe from "../RelMe.astro";
 import SiteRouter from "../SiteRouter.astro";
 import UniverseHistoryGuard from "../UniverseHistoryGuard.astro";
 import type { Post } from "../../data/posts";
@@ -22,6 +24,12 @@ import {
 	type Locale,
 } from "../../i18n/config";
 import { tagsIndexPath } from "../../utils/tags";
+import {
+	authorPerson,
+	authorRef,
+	AUTHOR_URL,
+	serializeJsonLd,
+} from "../../data/identity";
 
 /**
  * Shared landing page: the 3D universe island plus the JS-free, indexable
@@ -66,8 +74,6 @@ const ogImage = new URL(`${base}/og.png`, Astro.site);
 const home = `${base}${localePrefix(locale)}/`;
 const canonical = new URL(home, Astro.site);
 const feed = `${base}${localePrefix(locale)}/rss.xml`;
-// Brand identity URL for structured data (locale-agnostic site root).
-const siteUrl = new URL(`${base}/`, Astro.site);
 
 // Reciprocal hreflang for the localized landing pages, x-default -> zh-hant.
 const alternates = LOCALES.map((l) => ({
@@ -76,25 +82,41 @@ const alternates = LOCALES.map((l) => ({
 }));
 const xDefaultHref = getAbsoluteLocaleUrl(DEFAULT_LOCALE, "");
 
-// Structured data: tell search engines this is a blog and list every post.
-const jsonLd = JSON.stringify({
+// Structured data: a WebSite whose author/publisher is the same Person the
+// posts use, plus the Blog listing. `serializeJsonLd` escapes "<".
+const author = authorRef();
+const jsonLd = serializeJsonLd({
 	"@context": "https://schema.org",
-	"@type": "Blog",
-	name: t("site.name"),
-	url: canonical,
-	description,
-	inLanguage: localeMeta.htmlLang,
-	author: { "@type": "Person", name: "James", url: siteUrl },
-	blogPost: posts.map((post) => ({
-		"@type": "BlogPosting",
-		headline: post.title,
-		description: post.summary,
-		datePublished: parseDisplayDate(post.date).toISOString().slice(0, 10),
-		url: new URL(postPath(post.slug, locale), Astro.site),
-	})),
-	// JSON.stringify leaves "</" intact, so a title/summary containing
-	// "</script>" could break out of the inline script tag; escape "<".
-}).replace(/</g, "\\u003c");
+	"@graph": [
+		authorPerson(),
+		{
+			"@type": "WebSite",
+			"@id": `${AUTHOR_URL}#website`,
+			name: t("site.name"),
+			url: AUTHOR_URL,
+			description,
+			inLanguage: localeMeta.htmlLang,
+			author,
+			publisher: author,
+		},
+		{
+			"@type": "Blog",
+			name: t("site.name"),
+			url: canonical,
+			description,
+			inLanguage: localeMeta.htmlLang,
+			author,
+			publisher: author,
+			blogPost: posts.map((post) => ({
+				"@type": "BlogPosting",
+				headline: post.title,
+				description: post.summary,
+				datePublished: parseDisplayDate(post.date).toISOString().slice(0, 10),
+				url: new URL(postPath(post.slug, locale), Astro.site),
+			})),
+		},
+	],
+});
 ---
 
 <html lang={localeMeta.htmlLang} data-universe>
@@ -111,6 +133,7 @@ const jsonLd = JSON.stringify({
 		<title>{t("index.docTitle")}</title>
 		<meta name="description" content={description} />
 		<link rel="canonical" href={canonical} />
+		<RelMe />
 		{
 			alternates.map((a) => (
 				<link rel="alternate" hreflang={a.hreflang} href={a.href} />
@@ -150,6 +173,7 @@ const jsonLd = JSON.stringify({
 		<nav class="post-index" aria-label={t("index.postsNavLabel")}>
 			<h1 class="post-index__title">{t("site.name")}</h1>
 			<a href={tagsIndexPath(locale)}>{t("tags.browseAll")}</a>
+			<GitHubLink locale={locale} variant="index" />
 			<ul>
 				{
 					posts.map((post) => (
@@ -200,6 +224,22 @@ const jsonLd = JSON.stringify({
 				}
 				.post-index li {
 					margin: 14px 0 !important;
+				}
+				.post-index__github {
+					display: inline-flex !important;
+					align-items: center;
+					gap: 8px;
+					min-height: 44px;
+					margin: 8px 0 0;
+					padding: 0 12px 0 10px;
+					border: 1px solid var(--color-line-strong);
+					border-radius: 999px;
+					background: var(--color-fill-strong);
+				}
+				.post-index__github svg {
+					width: 20px;
+					height: 20px;
+					flex: none;
 				}
 			</style>
 		</noscript>
@@ -401,6 +441,22 @@ const jsonLd = JSON.stringify({
 	}
 	body.universe-fallback .post-index li {
 		margin: 14px 0 !important;
+	}
+	body.universe-fallback .post-index__github {
+		display: inline-flex !important;
+		align-items: center;
+		gap: 8px;
+		min-height: 44px;
+		margin: 8px 0 0;
+		padding: 0 12px 0 10px;
+		border: 1px solid var(--color-line-strong);
+		border-radius: 999px;
+		background: var(--color-fill-strong);
+	}
+	body.universe-fallback .post-index__github svg {
+		width: 20px;
+		height: 20px;
+		flex: none;
 	}
 	body.universe-fallback .lang-switch-fixed {
 		z-index: 40;
