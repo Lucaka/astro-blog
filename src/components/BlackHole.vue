@@ -43,6 +43,7 @@ import PostListSidebar from "./PostListSidebar.vue";
 import CategoryLegend from "./CategoryLegend.vue";
 import HintToast from "./HintToast.vue";
 import ExitChargePill from "./ExitChargePill.vue";
+import GitHubLink from "./GitHubLink.vue";
 import InfoGuide from "./InfoGuide.vue";
 import StarTooltip from "./StarTooltip.vue";
 import ReadingPanel from "./ReadingPanel.vue";
@@ -1292,6 +1293,10 @@ onMounted(async () => {
         @fly="onSearchFly"
         @open="onSearchOpen"
       />
+
+      <!-- Profile link. Narrow: own row under the language switch. Wide: inline
+           to its left. Hidden with the other corner controls while reading. -->
+      <GitHubLink :hidden="!!selectedPost" />
 
       <!-- Article list sidebar: a normal blog-style index for quick browsing.
          Hovering an entry highlights its star; clicking opens the post. -->

@@ -16,7 +16,9 @@ import {
 	DEFAULT_LOCALE,
 	type Locale,
 } from "../../i18n/config";
+import GitHubLink from "../GitHubLink.astro";
 import LanguageSwitch from "../LanguageSwitch.astro";
+import RelMe from "../RelMe.astro";
 import ReadingModeBoot from "../ReadingModeBoot.astro";
 import ReadingModeToggle from "../ReadingModeToggle.astro";
 import ReadingProgress from "../ReadingProgress.astro";
@@ -25,6 +27,12 @@ import { tagSlug, tagPath, tagsIndexPath } from "../../utils/tags";
 import "../../styles/global.css";
 import "../../styles/document.css";
 import type { TranslationEntry } from "../../utils/translations";
+import {
+	AUTHOR_NAME,
+	authorPerson,
+	authorRef,
+	serializeJsonLd,
+} from "../../data/identity";
 
 /**
  * Shared post document, rendered by both `/posts/[slug]` (zh-hant) and
@@ -81,8 +89,6 @@ const prefix = localePrefix(locale);
 const home = `${base}${prefix}/`;
 const feed = `${base}${prefix}/rss.xml`;
 const ogImage = new URL(`${base}/og/${entry.id}.png`, Astro.site);
-// Brand identity URL for structured data (locale-agnostic site root).
-const siteUrl = new URL(`${base}/`, Astro.site);
 const isoDate = published.toISOString().slice(0, 10);
 
 // Self URL for this locale; the canonical points at the original for a
@@ -102,33 +108,33 @@ const alternates = hasTranslation
 		}))
 	: [];
 
-// Structured data for search engines: this page is a blog post.
-const jsonLd = JSON.stringify({
+// Structured data: one Person, referenced as both author and publisher.
+const author = authorRef();
+const jsonLd = serializeJsonLd({
 	"@context": "https://schema.org",
-	"@type": "BlogPosting",
-	headline: title,
-	description: summary,
-	datePublished: isoDate,
-	// We have no separate "modified" date, so it mirrors the published date.
-	dateModified: isoDate,
-	author: { "@type": "Person", name: "James", url: siteUrl },
-	publisher: {
-		"@type": "Organization",
-		name: t("site.name"),
-		logo: { "@type": "ImageObject", url: ogImage },
-	},
-	keywords: tags.join(", "),
-	articleSection: meta.label,
-	// The body's real language: the source language while falling back.
-	inLanguage: isFallback
-		? LOCALE_META[DEFAULT_LOCALE].htmlLang
-		: localeMeta.htmlLang,
-	image: ogImage,
-	mainEntityOfPage: canonical,
-	url: selfUrl,
-	// JSON.stringify leaves "</" intact, so a title/summary containing
-	// "</script>" could break out of the inline script tag; escape "<".
-}).replace(/</g, "\\u003c");
+	"@graph": [
+		authorPerson(),
+		{
+			"@type": "BlogPosting",
+			headline: title,
+			description: summary,
+			datePublished: isoDate,
+			// We have no separate "modified" date, so it mirrors the published date.
+			dateModified: isoDate,
+			author,
+			publisher: author,
+			keywords: tags.join(", "),
+			articleSection: meta.label,
+			// The body's real language: the source language while falling back.
+			inLanguage: isFallback
+				? LOCALE_META[DEFAULT_LOCALE].htmlLang
+				: localeMeta.htmlLang,
+			image: ogImage,
+			mainEntityOfPage: canonical,
+			url: selfUrl,
+		},
+	],
+});
 ---
 
 <html lang={localeMeta.htmlLang}>
@@ -145,6 +151,7 @@ const jsonLd = JSON.stringify({
 		<title>{title} {t("post.docTitleSuffix")}</title>
 		<meta name="description" content={summary} />
 		<link rel="canonical" href={canonical} />
+		<RelMe />
 		{
 			alternates.map((a) => (
 				<link rel="alternate" hreflang={a.hreflang} href={a.href} />
@@ -179,7 +186,7 @@ const jsonLd = JSON.stringify({
 		<meta property="og:image:alt" content={title} />
 		<meta property="article:published_time" content={published.toISOString()} />
 		<meta property="article:modified_time" content={published.toISOString()} />
-		<meta property="article:author" content="James" />
+		<meta property="article:author" content={AUTHOR_NAME} />
 		<meta property="article:section" content={meta.label} />
 		{tags.map((tag) => <meta property="article:tag" content={tag} />)}
 		<meta name="twitter:card" content="summary_large_image" />
@@ -298,8 +305,11 @@ const jsonLd = JSON.stringify({
 		</main>
 
 		<footer class="site-footer">
-			<a href={home}>{t("site.name")}</a> — {t("footer.tagline")} ·
-			<a href={tagsIndexPath(locale)}>{t("tags.browse")}</a>
+			<p class="site-footer__line">
+				<a href={home}>{t("site.name")}</a> — {t("footer.tagline")} ·
+				<a href={tagsIndexPath(locale)}>{t("tags.browse")}</a>
+			</p>
+			<GitHubLink locale={locale} />
 		</footer>
 	</body>
 </html>

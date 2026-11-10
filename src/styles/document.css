@@ -282,6 +282,10 @@ body.doc--lost {
 }
 
 .site-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.75rem;
   max-width: var(--doc-width);
   margin: 0 auto;
   padding: 0 calc(clamp(20px, 5vw, 32px) + var(--safe-r))
@@ -289,6 +293,42 @@ body.doc--lost {
   color: var(--color-ink-meta);
   font-size: var(--text-meta);
   line-height: 1.6;
+}
+
+.site-footer__line {
+  margin: 0;
+}
+
+/* Profile chip. Tokens flip with reading mode, so the label stays ink-on-fill. */
+.site-footer .github-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 44px;
+  padding: 0 0.9rem 0 0.7rem;
+  border: 1px solid var(--color-line-strong);
+  border-radius: 999px;
+  background: var(--color-fill-strong);
+  color: var(--color-ink);
+  font-size: var(--text-reading);
+  line-height: 1;
+  white-space: nowrap;
+  text-decoration: none;
+  backdrop-filter: blur(var(--blur-hud));
+}
+
+.site-footer .github-link svg {
+  width: 1.25rem;
+  height: 1.25rem;
+  flex: none;
+}
+
+.site-footer .github-link:hover,
+.site-footer .github-link:focus-visible {
+  border-color: color-mix(in srgb, var(--color-accent) 55%, transparent);
+  background: var(--color-fill-strong);
+  color: var(--color-ink);
+  text-decoration: none;
 }
 
 .doc-title {

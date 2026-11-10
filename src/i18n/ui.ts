@@ -61,8 +61,10 @@ export const UI = {
     "post.tocLabel": "文章目錄",
     "post.readingMode": "閱讀模式",
 
-    // Language switcher
+    // Language switcher + profile link
     "nav.language": "語言",
+    "nav.github": "GitHub",
+    "nav.githubProfile": "Lucaka 的 GitHub",
 
     // RSS feed
     "rss.description": "在宇宙裡探索的部落格：前端、圖學與隨筆。",
@@ -227,8 +229,10 @@ export const UI = {
     "post.tocLabel": "Table of contents",
     "post.readingMode": "Reading mode",
 
-    // Language switcher
+    // Language switcher + profile link
     "nav.language": "Language",
+    "nav.github": "GitHub",
+    "nav.githubProfile": "Lucaka on GitHub",
 
     // RSS feed
     "rss.description":

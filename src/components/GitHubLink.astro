@@ -1,0 +1,29 @@
+---
+import type { Locale } from "../i18n/config";
+import { useTranslations } from "../i18n";
+import { GITHUB_ICON_PATH, GITHUB_PROFILE } from "../data/identity";
+
+/**
+ * Visible profile link for the static pages. `chip` sits in the document
+ * footer; `index` joins the home page's JS-free post list (clipped until
+ * focus, or promoted when the 3D scene is off).
+ */
+interface Props {
+	locale: Locale;
+	variant?: "chip" | "index";
+}
+const { locale, variant = "chip" } = Astro.props;
+const t = useTranslations(locale);
+---
+
+<a
+	class:list={[variant === "index" ? "post-index__github" : "github-link"]}
+	href={GITHUB_PROFILE}
+	rel="me noopener"
+	target="_blank"
+>
+	<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+		<path fill="currentColor" d={GITHUB_ICON_PATH}></path>
+	</svg>
+	<span>{t("nav.githubProfile")}</span>
+</a>

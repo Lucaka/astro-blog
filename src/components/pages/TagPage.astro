@@ -11,7 +11,9 @@ import {
 	DEFAULT_LOCALE,
 	type Locale,
 } from "../../i18n/config";
+import GitHubLink from "../GitHubLink.astro";
 import LanguageSwitch from "../LanguageSwitch.astro";
+import RelMe from "../RelMe.astro";
 import ReadingModeBoot from "../ReadingModeBoot.astro";
 import ReadingModeToggle from "../ReadingModeToggle.astro";
 import SiteRouter from "../SiteRouter.astro";
@@ -92,6 +94,7 @@ const jsonLd = JSON.stringify({
 		<title>{docTitle}</title>
 		<meta name="description" content={description} />
 		<link rel="canonical" href={canonical} />
+		<RelMe />
 		{
 			alternates.map((a) => (
 				<link rel="alternate" hreflang={a.hreflang} href={a.href} />
@@ -176,7 +179,10 @@ const jsonLd = JSON.stringify({
 		</main>
 
 		<footer class="site-footer">
-			<a href={home}>{t("site.name")}</a> — {t("footer.tagline")}
+			<p class="site-footer__line">
+				<a href={home}>{t("site.name")}</a> — {t("footer.tagline")}
+			</p>
+			<GitHubLink locale={locale} />
 		</footer>
 	</body>
 </html>
