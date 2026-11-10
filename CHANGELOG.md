@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.0](https://github.com/Lucaka/astro-blog/compare/astro-blog-v0.3.0...astro-blog-v0.4.0) (2026-11-10)
+
+
+### ✨ New Features
+
+* [Base] - 加入 GitHub 個人檔案連結與 Person 結構化資料 ([#32](https://github.com/Lucaka/astro-blog/issues/32)) ([d034ecf](https://github.com/Lucaka/astro-blog/commit/d034ecf9af624d00f17a0b7efb2ed64e70adaf10))
+
+
+### 📝 Documentation
+
+* 新增文章 HTTP 快取筆記 ([#30](https://github.com/Lucaka/astro-blog/issues/30)) ([c1bfba8](https://github.com/Lucaka/astro-blog/commit/c1bfba8740f1d044c9c55737e9d535cc16726677))
+
 ## [0.3.0](https://github.com/Lucaka/astro-blog/compare/astro-blog-v0.2.0...astro-blog-v0.3.0) (2026-11-06)
 
 
